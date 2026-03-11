@@ -1,0 +1,1 @@
+"""NFT Collector Bot package."""
