@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AH Collector – Auction House Tracker</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+  <!-- ── Header ── -->
+  <header class="header">
+    <div class="header__inner">
+      <div class="header__brand">
+        <span class="header__logo">💎</span>
+        <h1 class="header__title">AH Collector</h1>
+      </div>
+      <nav class="header__nav">
+        <button class="btn btn--outline" id="btnShowAll">All Items</button>
+        <button class="btn btn--outline" id="btnShowWatchlist">Watchlist</button>
+        <button class="btn btn--primary" id="btnAddItem">+ Add Item</button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ── Stats bar ── -->
+  <section class="stats-bar" id="statsBar">
+    <div class="stat-card">
+      <span class="stat-card__value" id="statTotal">–</span>
+      <span class="stat-card__label">Total Items</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-card__value" id="statWatchlisted">–</span>
+      <span class="stat-card__label">Watchlisted</span>
+    </div>
+    <div class="stat-card" id="statCategoriesCard">
+      <span class="stat-card__value" id="statCategories">–</span>
+      <span class="stat-card__label">Categories</span>
+    </div>
+  </section>
+
+  <!-- ── Search / Filter ── -->
+  <section class="toolbar">
+    <div class="search-wrap">
+      <input
+        type="search"
+        id="searchInput"
+        class="search-input"
+        placeholder="Search by name or collection…"
+        aria-label="Search items"
+      />
+    </div>
+    <div class="filter-wrap">
+      <select id="filterCategory" class="select" aria-label="Filter by category">
+        <option value="">All categories</option>
+      </select>
+    </div>
+  </section>
+
+  <!-- ── Item Grid ── -->
+  <main class="main">
+    <div class="item-grid" id="itemGrid">
+      <p class="empty-state" id="emptyState">Loading items…</p>
+    </div>
+  </main>
+
+  <!-- ── Add / Edit Modal ── -->
+  <div class="modal-backdrop hidden" id="modalBackdrop" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal">
+      <div class="modal__header">
+        <h2 class="modal__title" id="modalTitle">Add Item</h2>
+        <button class="modal__close" id="modalClose" aria-label="Close">&times;</button>
+      </div>
+      <form class="modal__form" id="itemForm" novalidate>
+        <input type="hidden" id="fieldId" />
+
+        <div class="form-row">
+          <label for="fieldName">Name <span class="required">*</span></label>
+          <input type="text" id="fieldName" placeholder="Item name" required maxlength="200" />
+          <span class="field-error" id="errorName"></span>
+        </div>
+
+        <div class="form-row">
+          <label for="fieldCollection">Collection</label>
+          <input type="text" id="fieldCollection" placeholder="e.g. CryptoPunks" maxlength="200" />
+        </div>
+
+        <div class="form-row">
+          <label for="fieldCategory">Category</label>
+          <input type="text" id="fieldCategory" placeholder="e.g. Art, Music, Gaming" maxlength="100" />
+        </div>
+
+        <div class="form-row">
+          <label for="fieldPrice">Current Price (ETH) <span class="required">*</span></label>
+          <input type="number" id="fieldPrice" placeholder="0.00" step="0.0001" min="0" required />
+          <span class="field-error" id="errorPrice"></span>
+        </div>
+
+        <div class="form-row form-row--split">
+          <div>
+            <label for="fieldMinPrice">Min Price Alert (ETH)</label>
+            <input type="number" id="fieldMinPrice" placeholder="Optional" step="0.0001" min="0" />
+          </div>
+          <div>
+            <label for="fieldMaxPrice">Max Price Alert (ETH)</label>
+            <input type="number" id="fieldMaxPrice" placeholder="Optional" step="0.0001" min="0" />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label for="fieldNotes">Notes</label>
+          <textarea id="fieldNotes" rows="3" placeholder="Any notes about this item…" maxlength="1000"></textarea>
+        </div>
+
+        <div class="form-row form-row--checkbox">
+          <input type="checkbox" id="fieldWatchlisted" />
+          <label for="fieldWatchlisted">Add to Watchlist</label>
+        </div>
+
+        <div class="modal__actions">
+          <button type="button" class="btn btn--ghost" id="btnCancel">Cancel</button>
+          <button type="submit" class="btn btn--primary" id="btnSubmit">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Price History Modal ── -->
+  <div class="modal-backdrop hidden" id="historyBackdrop" role="dialog" aria-modal="true" aria-labelledby="historyTitle">
+    <div class="modal modal--wide">
+      <div class="modal__header">
+        <h2 class="modal__title" id="historyTitle">Price History</h2>
+        <button class="modal__close" id="historyClose" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal__body" id="historyBody">
+        <p class="empty-state">No history yet.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Toast ── -->
+  <div class="toast hidden" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
