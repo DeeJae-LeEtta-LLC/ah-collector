@@ -11,6 +11,27 @@
   let allItems = [];
   let currentFilter = { search: "", category: "", watchlisted: false };
 
+  // ── Token storage ─────────────────────────────────────────────────────────
+  // Tokens are persisted in localStorage so they survive page refreshes.
+
+  const TOKEN_KEY   = "ahc_access_token";
+  const REFRESH_KEY = "ahc_refresh_token";
+
+  function getAccessToken()  { return localStorage.getItem(TOKEN_KEY); }
+  function getRefreshToken() { return localStorage.getItem(REFRESH_KEY); }
+
+  function saveTokens(access, refresh) {
+    localStorage.setItem(TOKEN_KEY, access);
+    if (refresh) localStorage.setItem(REFRESH_KEY, refresh);
+  }
+
+  function clearTokens() {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(REFRESH_KEY);
+  }
+
+  function isLoggedIn() { return !!getAccessToken(); }
+
   // ── DOM refs ─────────────────────────────────────────────────────────────
 
   const itemGrid        = document.getElementById("itemGrid");
@@ -25,6 +46,8 @@
   const btnShowAll       = document.getElementById("btnShowAll");
   const btnShowWatchlist = document.getElementById("btnShowWatchlist");
   const btnAddItem       = document.getElementById("btnAddItem");
+  const btnLogin         = document.getElementById("btnLogin");
+  const btnLogout        = document.getElementById("btnLogout");
 
   // item modal
   const modalBackdrop = document.getElementById("modalBackdrop");
@@ -52,6 +75,17 @@
   const historyBody     = document.getElementById("historyBody");
   const historyClose    = document.getElementById("historyClose");
 
+  // auth modal
+  const authBackdrop   = document.getElementById("authBackdrop");
+  const authTitle      = document.getElementById("authTitle");
+  const authForm       = document.getElementById("authForm");
+  const authClose      = document.getElementById("authClose");
+  const authUsername   = document.getElementById("authUsername");
+  const authPassword   = document.getElementById("authPassword");
+  const authError      = document.getElementById("authError");
+  const authSubmit     = document.getElementById("authSubmit");
+  const authToggleMode = document.getElementById("authToggleMode");
+
   // toast
   const toast = document.getElementById("toast");
 
@@ -66,18 +100,156 @@
     toastTimer = setTimeout(() => { toast.classList.add("hidden"); }, 3000);
   }
 
+  // ── Auth UI ───────────────────────────────────────────────────────────────
+
+  function updateAuthUI() {
+    if (isLoggedIn()) {
+      btnLogin.style.display  = "none";
+      btnLogout.style.display = "";
+      btnAddItem.style.display = "";
+    } else {
+      btnLogin.style.display  = "";
+      btnLogout.style.display = "none";
+      btnAddItem.style.display = "none";
+    }
+  }
+
+  // isRegisterMode drives the login/register toggle in the auth modal.
+  let isRegisterMode = false;
+
+  function openAuthModal(registerMode = false) {
+    isRegisterMode = registerMode;
+    authTitle.textContent      = isRegisterMode ? "Register" : "Log in";
+    authSubmit.textContent     = isRegisterMode ? "Register" : "Log in";
+    authToggleMode.textContent = isRegisterMode ? "Already have an account? Log in" : "No account? Register";
+    authUsername.value = "";
+    authPassword.value = "";
+    authError.textContent = "";
+    authBackdrop.classList.remove("hidden");
+    authUsername.focus();
+  }
+
+  function closeAuthModal() {
+    authBackdrop.classList.add("hidden");
+  }
+
+  authToggleMode.addEventListener("click", () => {
+    isRegisterMode = !isRegisterMode;
+    authTitle.textContent      = isRegisterMode ? "Register" : "Log in";
+    authSubmit.textContent     = isRegisterMode ? "Register" : "Log in";
+    authToggleMode.textContent = isRegisterMode ? "Already have an account? Log in" : "No account? Register";
+    authError.textContent = "";
+    authPassword.value = "";
+    authUsername.focus();
+  });
+
+  authForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    authError.textContent = "";
+    const username = authUsername.value.trim();
+    const password = authPassword.value;
+
+    if (!username || !password) {
+      authError.textContent = "Username and password are required.";
+      return;
+    }
+
+    const endpoint = isRegisterMode ? "/api/auth/register" : "/api/auth/login";
+    try {
+      const data = await apiFetch(endpoint, {
+        method: "POST",
+        body: JSON.stringify({ username, password }),
+      });
+
+      if (isRegisterMode) {
+        showToast("Account created! You are now logged in.");
+        // After registration, log in automatically.
+        const loginData = await apiFetch("/api/auth/login", {
+          method: "POST",
+          body: JSON.stringify({ username, password }),
+        });
+        saveTokens(loginData.access_token, loginData.refresh_token);
+      } else {
+        saveTokens(data.access_token, data.refresh_token);
+        showToast("Logged in.");
+      }
+
+      closeAuthModal();
+      updateAuthUI();
+      refreshAll();
+    } catch (err) {
+      authError.textContent = err.message;
+    }
+  });
+
+  btnLogin.addEventListener("click",  () => openAuthModal(false));
+  btnLogout.addEventListener("click", () => {
+    clearTokens();
+    updateAuthUI();
+    showToast("Logged out.");
+    refreshAll();
+  });
+
+  authClose.addEventListener("click", closeAuthModal);
+  authBackdrop.addEventListener("click", (e) => {
+    if (e.target === authBackdrop) closeAuthModal();
+  });
+
   // ── API helpers ──────────────────────────────────────────────────────────
 
   async function apiFetch(url, options = {}) {
-    const res = await fetch(url, {
-      headers: { "Content-Type": "application/json" },
-      ...options,
-    });
+    const headers = { "Content-Type": "application/json" };
+    const token = getAccessToken();
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    const res = await fetch(url, { headers, ...options });
+
+    // Attempt a transparent token refresh on 401 for non-auth endpoints.
+    if (res.status === 401 && !url.startsWith("/api/auth/")) {
+      const refreshed = await tryRefreshToken();
+      if (refreshed) {
+        // Retry the original request with the new token.
+        headers["Authorization"] = `Bearer ${getAccessToken()}`;
+        const retryRes = await fetch(url, { headers, ...options });
+        if (retryRes.ok) return retryRes.json();
+        // If the retry also fails, fall through to error handling below.
+        const retryErr = await retryRes.json().catch(() => ({ description: "Request failed" }));
+        throw new Error(retryErr.description || `HTTP ${retryRes.status}`);
+      }
+      // Refresh failed – prompt login.
+      clearTokens();
+      updateAuthUI();
+      openAuthModal(false);
+      throw new Error("Session expired. Please log in.");
+    }
+
     if (!res.ok) {
       const err = await res.json().catch(() => ({ description: "Request failed" }));
       throw new Error(err.description || `HTTP ${res.status}`);
     }
     return res.json();
+  }
+
+  /**
+   * Attempt to exchange the stored refresh token for a new access token.
+   * Returns true on success, false otherwise.
+   */
+  async function tryRefreshToken() {
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) return false;
+    try {
+      const data = await fetch("/api/auth/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+      if (!data.ok) return false;
+      const json = await data.json();
+      saveTokens(json.access_token, null);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   // ── Load data ────────────────────────────────────────────────────────────
@@ -399,7 +571,10 @@
 
   // ── Event wiring ─────────────────────────────────────────────────────────
 
-  btnAddItem.addEventListener("click", openAddModal);
+  btnAddItem.addEventListener("click", () => {
+    if (!isLoggedIn()) { openAuthModal(false); return; }
+    openAddModal();
+  });
   modalClose.addEventListener("click", closeModal);
   btnCancel.addEventListener("click", closeModal);
   historyClose.addEventListener("click", () => historyBackdrop.classList.add("hidden"));
@@ -417,6 +592,7 @@
     if (e.key === "Escape") {
       closeModal();
       historyBackdrop.classList.add("hidden");
+      closeAuthModal();
     }
   });
 
@@ -435,5 +611,6 @@
   // ── Init ─────────────────────────────────────────────────────────────────
 
   btnShowAll.classList.add("active");
+  updateAuthUI();
   refreshAll();
 })();

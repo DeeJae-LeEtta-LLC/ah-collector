@@ -4,12 +4,15 @@ Flask backend providing REST API and serving the frontend.
 """
 
 import os
-import json
-from datetime import datetime, timezone
+import secrets
+from datetime import datetime, timedelta, timezone
+from functools import wraps
 
+import jwt
 from flask import Flask, jsonify, render_template, request, abort
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import desc, func
+from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
 
@@ -19,6 +22,16 @@ app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
     "DATABASE_URL", "sqlite:///" + os.path.join(basedir, "ah_collector.db")
 )
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+# JWT configuration – set JWT_SECRET_KEY in the environment for production.
+# A random key is generated as a fallback so the app starts safely in dev,
+# but tokens issued with it will be invalidated on every restart.
+app.config["JWT_SECRET_KEY"] = os.environ.get(
+    "JWT_SECRET_KEY", secrets.token_hex(32)
+)
+# Access tokens expire after 15 minutes; refresh tokens after 7 days.
+JWT_ACCESS_EXPIRES  = timedelta(minutes=15)
+JWT_REFRESH_EXPIRES = timedelta(days=7)
 
 db = SQLAlchemy(app)
 
@@ -90,6 +103,78 @@ class PriceHistory(db.Model):
         }
 
 
+class User(db.Model):
+    """Application user with hashed password for JWT-based authentication."""
+
+    __tablename__ = "users"
+
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password_hash = db.Column(db.String(256), nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def set_password(self, password: str) -> None:
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password: str) -> bool:
+        return check_password_hash(self.password_hash, password)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# JWT helpers
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _make_token(user_id: int, token_type: str, expires_delta: timedelta) -> str:
+    """Encode a signed JWT with type, subject, and expiration claims."""
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": str(user_id),
+        "type": token_type,
+        "iat": now,
+        "exp": now + expires_delta,
+    }
+    return jwt.encode(payload, app.config["JWT_SECRET_KEY"], algorithm="HS256")
+
+
+def create_access_token(user_id: int) -> str:
+    return _make_token(user_id, "access", JWT_ACCESS_EXPIRES)
+
+
+def create_refresh_token(user_id: int) -> str:
+    return _make_token(user_id, "refresh", JWT_REFRESH_EXPIRES)
+
+
+def _decode_token(token: str, expected_type: str) -> dict:
+    """Decode and validate a JWT.  Raises jwt.PyJWTError on any failure."""
+    payload = jwt.decode(
+        token,
+        app.config["JWT_SECRET_KEY"],
+        algorithms=["HS256"],
+    )
+    if payload.get("type") != expected_type:
+        raise jwt.InvalidTokenError("Wrong token type.")
+    return payload
+
+
+def token_required(f):
+    """Decorator that enforces a valid Bearer access token on a route."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header.startswith("Bearer "):
+            abort(401, description="Missing or malformed Authorization header.")
+        raw_token = auth_header[len("Bearer "):]
+        try:
+            payload = _decode_token(raw_token, "access")
+        except jwt.ExpiredSignatureError:
+            abort(401, description="Access token has expired.")
+        except jwt.PyJWTError:
+            abort(401, description="Invalid access token.")
+        request.current_user_id = int(payload["sub"])
+        return f(*args, **kwargs)
+    return decorated
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Frontend routes
 # ──────────────────────────────────────────────────────────────────────────────
@@ -98,6 +183,90 @@ class PriceHistory(db.Model):
 def index():
     """Serve the main dashboard."""
     return render_template("index.html")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Auth routes
+# ──────────────────────────────────────────────────────────────────────────────
+
+@app.route("/api/auth/register", methods=["POST"])
+def register():
+    """Register a new user account."""
+    payload = request.get_json(silent=True)
+    if not payload:
+        abort(400, description="Request body must be JSON.")
+
+    username = payload.get("username", "").strip()
+    password = payload.get("password", "")
+
+    if not username:
+        abort(400, description="'username' is required.")
+    if len(username) > 80:
+        abort(400, description="'username' must be 80 characters or fewer.")
+    if not password or len(password) < 8:
+        abort(400, description="'password' must be at least 8 characters.")
+
+    if User.query.filter_by(username=username).first():
+        abort(409, description="Username already taken.")
+
+    user = User(username=username)
+    user.set_password(password)
+    db.session.add(user)
+    db.session.commit()
+
+    return jsonify({"message": "Account created. You can now log in."}), 201
+
+
+@app.route("/api/auth/login", methods=["POST"])
+def login():
+    """Authenticate and return access + refresh tokens."""
+    payload = request.get_json(silent=True)
+    if not payload:
+        abort(400, description="Request body must be JSON.")
+
+    username = payload.get("username", "").strip()
+    password = payload.get("password", "")
+
+    user = User.query.filter_by(username=username).first()
+    if not user or not user.check_password(password):
+        abort(401, description="Invalid username or password.")
+
+    return jsonify(
+        {
+            "access_token": create_access_token(user.id),
+            "refresh_token": create_refresh_token(user.id),
+            "token_type": "Bearer",
+            "expires_in": int(JWT_ACCESS_EXPIRES.total_seconds()),
+        }
+    )
+
+
+@app.route("/api/auth/refresh", methods=["POST"])
+def refresh():
+    """Issue a new access token given a valid refresh token."""
+    payload = request.get_json(silent=True)
+    if not payload:
+        abort(400, description="Request body must be JSON.")
+
+    raw_token = payload.get("refresh_token", "")
+    try:
+        token_payload = _decode_token(raw_token, "refresh")
+    except jwt.ExpiredSignatureError:
+        abort(401, description="Refresh token has expired. Please log in again.")
+    except jwt.PyJWTError:
+        abort(401, description="Invalid refresh token.")
+
+    user_id = int(token_payload["sub"])
+    if not db.session.get(User, user_id):
+        abort(401, description="User no longer exists.")
+
+    return jsonify(
+        {
+            "access_token": create_access_token(user_id),
+            "token_type": "Bearer",
+            "expires_in": int(JWT_ACCESS_EXPIRES.total_seconds()),
+        }
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -141,6 +310,7 @@ def get_item(item_id):
 
 
 @app.route("/api/items", methods=["POST"])
+@token_required
 def create_item():
     """Create a new tracked item."""
     payload = request.get_json(silent=True)
@@ -179,6 +349,7 @@ def create_item():
 
 
 @app.route("/api/items/<int:item_id>", methods=["PUT"])
+@token_required
 def update_item(item_id):
     """Update an existing item (and record price change if price differs)."""
     item = db.get_or_404(Item, item_id)
@@ -223,6 +394,7 @@ def update_item(item_id):
 
 
 @app.route("/api/items/<int:item_id>", methods=["DELETE"])
+@token_required
 def delete_item(item_id):
     """Delete a tracked item."""
     item = db.get_or_404(Item, item_id)
@@ -232,6 +404,7 @@ def delete_item(item_id):
 
 
 @app.route("/api/items/<int:item_id>/watchlist", methods=["POST"])
+@token_required
 def toggle_watchlist(item_id):
     """Toggle the watchlist status of an item."""
     item = db.get_or_404(Item, item_id)
