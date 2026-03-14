@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AH Collector – Marketplace</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+  <link rel="stylesheet" href="/static/css/marketplace.css" />
+  <!-- Leaflet for world map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+</head>
+<body>
+  <!-- ── Header ── -->
+  <header class="header">
+    <div class="header__inner">
+      <div class="header__brand">
+        <span class="header__logo">🗺️</span>
+        <h1 class="header__title">Marketplace</h1>
+      </div>
+      <nav class="header__nav">
+        <a href="/" class="btn btn--outline">← Tracker</a>
+        <button class="btn btn--outline" id="btnOpenWallet">💰 Wallet</button>
+        <button class="btn btn--primary"  id="btnCreateTrade">+ New Listing</button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ── Exchange-rate ticker ── -->
+  <div class="ticker" id="ticker">
+    <span class="ticker__item" id="tickerD33JBTC">1 D33J = … BTC</span>
+    <span class="ticker__sep">|</span>
+    <span class="ticker__item" id="tickerD33JETH">1 D33J = … ETH</span>
+    <span class="ticker__sep">|</span>
+    <span class="ticker__item" id="tickerBTCETH">1 BTC = … ETH</span>
+  </div>
+
+  <!-- ── Stats bar ── -->
+  <section class="stats-bar" id="statsBar">
+    <div class="stat-card">
+      <span class="stat-card__value" id="statOpenTrades">–</span>
+      <span class="stat-card__label">Open Listings</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-card__value" id="statAuctions">–</span>
+      <span class="stat-card__label">Live Auctions</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-card__value" id="statRegions">–</span>
+      <span class="stat-card__label">Regions</span>
+    </div>
+    <div class="stat-card wallet-stat hidden" id="walletStatCard">
+      <span class="stat-card__value" id="statWalletAddr">–</span>
+      <span class="stat-card__label">Your Wallet</span>
+    </div>
+  </section>
+
+  <!-- ── Main layout ── -->
+  <div class="mp-layout">
+
+    <!-- ── Left: World Map ── -->
+    <section class="mp-map-panel">
+      <div class="panel-header">
+        <h2 class="panel-title">🌍 World Map</h2>
+        <button class="btn btn--sm btn--outline" id="btnClearRegion">Show All</button>
+      </div>
+      <div id="worldMap" class="world-map"></div>
+      <p class="map-hint">Click a region marker to filter trades by location.</p>
+    </section>
+
+    <!-- ── Right: Filters + Trade list ── -->
+    <section class="mp-list-panel">
+      <div class="panel-header">
+        <h2 class="panel-title">📋 Listings</h2>
+        <div class="list-filters">
+          <select id="filterCurrency" class="select select--sm" aria-label="Filter by currency">
+            <option value="">All Currencies</option>
+            <option value="D33J">D33J</option>
+            <option value="BTC">BTC</option>
+            <option value="ETH">ETH</option>
+          </select>
+          <select id="filterType" class="select select--sm" aria-label="Filter by type">
+            <option value="">All Types</option>
+            <option value="direct">Direct Sale</option>
+            <option value="auction">Auction</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="activeRegionLabel" class="region-label hidden"></div>
+
+      <div class="trade-list" id="tradeList">
+        <p class="empty-state">Loading listings…</p>
+      </div>
+    </section>
+  </div>
+
+  <!-- ── Wallet Modal ── -->
+  <div class="modal-backdrop hidden" id="walletBackdrop" role="dialog" aria-modal="true" aria-labelledby="walletModalTitle">
+    <div class="modal">
+      <div class="modal__header">
+        <h2 class="modal__title" id="walletModalTitle">💰 Your Wallet</h2>
+        <button class="modal__close" id="walletClose" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal__body" id="walletBody">
+
+        <!-- No wallet yet -->
+        <div id="walletCreateSection">
+          <p class="wallet-info-text">You don't have a wallet yet. Create one to start trading.</p>
+          <button class="btn btn--primary" id="btnNewWallet">Create Wallet</button>
+        </div>
+
+        <!-- Wallet found -->
+        <div id="walletInfoSection" class="hidden">
+          <div class="wallet-address-row">
+            <span class="wallet-label">Address</span>
+            <code class="wallet-address" id="walletAddress">–</code>
+          </div>
+          <div class="wallet-balances">
+            <div class="balance-card balance-card--d33j">
+              <span class="balance-icon">🪙</span>
+              <div>
+                <span class="balance-value" id="balD33J">–</span>
+                <span class="balance-currency">D33J</span>
+              </div>
+            </div>
+            <div class="balance-card balance-card--btc">
+              <span class="balance-icon">₿</span>
+              <div>
+                <span class="balance-value" id="balBTC">–</span>
+                <span class="balance-currency">BTC</span>
+              </div>
+            </div>
+            <div class="balance-card balance-card--eth">
+              <span class="balance-icon">Ξ</span>
+              <div>
+                <span class="balance-value" id="balETH">–</span>
+                <span class="balance-currency">ETH</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Exchange section -->
+          <div class="exchange-section">
+            <h3 class="exchange-title">⇄ Exchange</h3>
+            <form id="exchangeForm" novalidate>
+              <div class="exchange-row">
+                <div class="form-row" style="flex:1">
+                  <label for="exchFrom">From</label>
+                  <select id="exchFrom" class="select">
+                    <option value="D33J" selected>D33J</option>
+                    <option value="BTC">BTC</option>
+                    <option value="ETH">ETH</option>
+                  </select>
+                </div>
+                <div class="form-row" style="flex:2">
+                  <label for="exchAmount">Amount</label>
+                  <input type="number" id="exchAmount" placeholder="0.0" min="0" step="any" />
+                </div>
+                <div class="form-row" style="flex:1">
+                  <label for="exchTo">To</label>
+                  <select id="exchTo" class="select">
+                    <option value="D33J">D33J</option>
+                    <option value="BTC" selected>BTC</option>
+                    <option value="ETH">ETH</option>
+                  </select>
+                </div>
+              </div>
+              <div id="exchPreview" class="exch-preview hidden"></div>
+              <div class="modal__actions">
+                <button type="submit" class="btn btn--primary">Exchange</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── New Listing Modal ── -->
+  <div class="modal-backdrop hidden" id="tradeBackdrop" role="dialog" aria-modal="true" aria-labelledby="tradeModalTitle">
+    <div class="modal">
+      <div class="modal__header">
+        <h2 class="modal__title" id="tradeModalTitle">📦 New Listing</h2>
+        <button class="modal__close" id="tradeClose" aria-label="Close">&times;</button>
+      </div>
+      <form class="modal__form" id="tradeForm" novalidate>
+
+        <div class="form-row">
+          <label for="tradeItemId">Item <span class="required">*</span></label>
+          <select id="tradeItemId" class="select" required>
+            <option value="">— Select an item —</option>
+          </select>
+          <span class="field-error" id="errorTradeItem"></span>
+        </div>
+
+        <div class="form-row">
+          <label for="tradeSeller">Seller Wallet Address <span class="required">*</span></label>
+          <input type="text" id="tradeSeller" placeholder="Your wallet address" maxlength="64" />
+          <span class="field-error" id="errorTradeSeller"></span>
+        </div>
+
+        <div class="form-row form-row--split">
+          <div>
+            <label for="tradePrice">Price <span class="required">*</span></label>
+            <input type="number" id="tradePrice" placeholder="0.00" step="any" min="0" />
+            <span class="field-error" id="errorTradePrice"></span>
+          </div>
+          <div>
+            <label for="tradeCurrency">Currency</label>
+            <select id="tradeCurrency" class="select">
+              <option value="D33J">D33J</option>
+              <option value="BTC">BTC</option>
+              <option value="ETH" selected>ETH</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label for="tradeRegion">Region</label>
+          <select id="tradeRegion" class="select">
+            <option value="">— No region —</option>
+          </select>
+        </div>
+
+        <div class="form-row form-row--checkbox">
+          <input type="checkbox" id="tradeIsAuction" />
+          <label for="tradeIsAuction">List as Auction</label>
+        </div>
+
+        <div class="form-row hidden" id="auctionHoursRow">
+          <label for="tradeAuctionHours">Auction Duration (hours)</label>
+          <input type="number" id="tradeAuctionHours" value="24" min="1" max="168" />
+        </div>
+
+        <div class="modal__actions">
+          <button type="button" class="btn btn--ghost" id="tradeCancelBtn">Cancel</button>
+          <button type="submit" class="btn btn--primary">Post Listing</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Bid / Buy Modal ── -->
+  <div class="modal-backdrop hidden" id="actionBackdrop" role="dialog" aria-modal="true" aria-labelledby="actionModalTitle">
+    <div class="modal">
+      <div class="modal__header">
+        <h2 class="modal__title" id="actionModalTitle">Trade Details</h2>
+        <button class="modal__close" id="actionClose" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal__body" id="actionBody">
+        <p class="empty-state">Loading…</p>
+      </div>
+      <div class="modal__actions" id="actionFooter" style="padding:0 1.4rem 1.4rem">
+        <button type="button" class="btn btn--ghost" id="actionCancelBtn">Close</button>
+        <button type="button" class="btn btn--primary hidden" id="btnBuyNow">Buy Now</button>
+        <button type="button" class="btn btn--primary hidden" id="btnPlaceBid">Place Bid</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Toast ── -->
+  <div class="toast hidden" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WLs=" crossorigin=""></script>
+  <script src="/static/js/marketplace.js"></script>
+</body>
+</html>
