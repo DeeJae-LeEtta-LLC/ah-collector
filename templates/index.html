@@ -18,6 +18,8 @@
         <button class="btn btn--outline" id="btnShowAll">All Items</button>
         <button class="btn btn--outline" id="btnShowWatchlist">Watchlist</button>
         <button class="btn btn--primary" id="btnAddItem">+ Add Item</button>
+        <button class="btn btn--outline" id="btnLogout" style="display:none">Log out</button>
+        <button class="btn btn--outline" id="btnLogin">Log in</button>
       </nav>
     </div>
   </header>
@@ -139,6 +141,31 @@
 
   <!-- ── Toast ── -->
   <div class="toast hidden" id="toast" role="status" aria-live="polite"></div>
+
+  <!-- ── Auth Modal ── -->
+  <div class="modal-backdrop hidden" id="authBackdrop" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+    <div class="modal">
+      <div class="modal__header">
+        <h2 class="modal__title" id="authTitle">Log in</h2>
+        <button class="modal__close" id="authClose" aria-label="Close">&times;</button>
+      </div>
+      <form class="modal__form" id="authForm" novalidate>
+        <div class="form-row">
+          <label for="authUsername">Username <span class="required">*</span></label>
+          <input type="text" id="authUsername" placeholder="Username" required maxlength="80" autocomplete="username" />
+          <span class="field-error" id="authError"></span>
+        </div>
+        <div class="form-row">
+          <label for="authPassword">Password <span class="required">*</span></label>
+          <input type="password" id="authPassword" placeholder="Password (min 8 characters)" required autocomplete="current-password" />
+        </div>
+        <div class="modal__actions">
+          <button type="button" class="btn btn--ghost" id="authToggleMode">No account? Register</button>
+          <button type="submit" class="btn btn--primary" id="authSubmit">Log in</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <script src="/static/js/app.js"></script>
 </body>
