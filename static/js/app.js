@@ -156,20 +156,24 @@
 
     const endpoint = isRegisterMode ? "/api/auth/register" : "/api/auth/login";
     try {
-      const data = await apiFetch(endpoint, {
+      await apiFetch(endpoint, {
         method: "POST",
         body: JSON.stringify({ username, password }),
       });
 
       if (isRegisterMode) {
-        showToast("Account created! You are now logged in.");
-        // After registration, log in automatically.
+        // After registration, log in automatically to obtain tokens.
         const loginData = await apiFetch("/api/auth/login", {
           method: "POST",
           body: JSON.stringify({ username, password }),
         });
         saveTokens(loginData.access_token, loginData.refresh_token);
+        showToast("Account created! You are now logged in.");
       } else {
+        const data = await apiFetch("/api/auth/login", {
+          method: "POST",
+          body: JSON.stringify({ username, password }),
+        });
         saveTokens(data.access_token, data.refresh_token);
         showToast("Logged in.");
       }
@@ -205,7 +209,8 @@
     const res = await fetch(url, { headers, ...options });
 
     // Attempt a transparent token refresh on 401 for non-auth endpoints.
-    if (res.status === 401 && !url.startsWith("/api/auth/")) {
+    const AUTH_PATHS = ["/api/auth/register", "/api/auth/login", "/api/auth/refresh"];
+    if (res.status === 401 && !AUTH_PATHS.some(p => url === p || url.startsWith(p + "?"))) {
       const refreshed = await tryRefreshToken();
       if (refreshed) {
         // Retry the original request with the new token.

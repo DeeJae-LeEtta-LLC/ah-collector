@@ -3,6 +3,7 @@ AH Collector - Auction House Collector Application
 Flask backend providing REST API and serving the frontend.
 """
 
+import logging
 import os
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -26,9 +27,14 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 # JWT configuration – set JWT_SECRET_KEY in the environment for production.
 # A random key is generated as a fallback so the app starts safely in dev,
 # but tokens issued with it will be invalidated on every restart.
-app.config["JWT_SECRET_KEY"] = os.environ.get(
-    "JWT_SECRET_KEY", secrets.token_hex(32)
-)
+_jwt_secret_from_env = os.environ.get("JWT_SECRET_KEY")
+if not _jwt_secret_from_env:
+    logging.warning(
+        "JWT_SECRET_KEY is not set. A temporary random key has been generated. "
+        "All tokens will be invalidated on restart. "
+        "Set JWT_SECRET_KEY in your environment for production deployments."
+    )
+app.config["JWT_SECRET_KEY"] = _jwt_secret_from_env or secrets.token_hex(32)
 # Access tokens expire after 15 minutes; refresh tokens after 7 days.
 JWT_ACCESS_EXPIRES  = timedelta(minutes=15)
 JWT_REFRESH_EXPIRES = timedelta(days=7)
