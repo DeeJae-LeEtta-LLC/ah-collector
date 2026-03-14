@@ -447,11 +447,17 @@ def get_stats():
 @app.route("/api/wallet", methods=["POST"])
 def create_wallet():
     """Create a new wallet and return its address and starting balances."""
-    address = secrets.token_hex(20)   # 40-char hex string  (160-bit)
-    wallet = Wallet(address=address)
-    db.session.add(wallet)
-    db.session.commit()
-    return jsonify(wallet.to_dict()), 201
+    from sqlalchemy.exc import IntegrityError
+    for _ in range(5):
+        address = secrets.token_hex(20)   # 40-char hex string  (160-bit)
+        try:
+            wallet = Wallet(address=address)
+            db.session.add(wallet)
+            db.session.commit()
+            return jsonify(wallet.to_dict()), 201
+        except IntegrityError:
+            db.session.rollback()
+    abort(500, description="Failed to generate unique wallet address.")
 
 
 @app.route("/api/wallet/<address>", methods=["GET"])
@@ -587,7 +593,7 @@ def create_trade():
     item_id = payload.get("item_id")
     if not item_id:
         abort(400, description="'item_id' is required.")
-    item = db.get_or_404(Item, item_id)   # noqa: F841 – validates item exists
+    db.get_or_404(Item, item_id)   # validates item exists
 
     seller = payload.get("seller_address", "").strip()
     if not seller:
@@ -664,10 +670,13 @@ def place_bid(trade_id):
         abort(400, description="This trade is not an auction.")
     if trade.status != "open":
         abort(400, description="This auction is no longer open.")
-    if trade.auction_end and datetime.now(timezone.utc) > trade.auction_end.replace(tzinfo=timezone.utc):
-        trade.status = "completed"
-        db.session.commit()
-        abort(400, description="Auction has ended.")
+    if trade.auction_end:
+        # auction_end may be naive (as stored by SQLite); treat it as UTC
+        end_utc = trade.auction_end if trade.auction_end.tzinfo else trade.auction_end.replace(tzinfo=timezone.utc)
+        if datetime.now(timezone.utc) > end_utc:
+            trade.status = "completed"
+            db.session.commit()
+            abort(400, description="Auction has ended.")
 
     payload = request.get_json(silent=True)
     if not payload:
@@ -691,10 +700,12 @@ def place_bid(trade_id):
     except (TypeError, ValueError):
         abort(400, description="'amount' must be a positive number.")
 
-    # Bid must exceed current top bid (or starting price)
+    # Bid must exceed current top bid (or the starting price if no bids yet)
+    has_bids = len(trade.bids) > 0
     top_bid = max((b.amount for b in trade.bids), default=trade.price)
     if amount <= top_bid:
-        abort(400, description=f"Bid must be greater than current top bid of {top_bid} {trade.currency}.")
+        label = "current top bid" if has_bids else "starting price"
+        abort(400, description=f"Bid must be greater than {label} of {top_bid} {trade.currency}.")
 
     bid = Bid(
         trade_id=trade_id,

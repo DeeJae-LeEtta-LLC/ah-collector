@@ -197,7 +197,7 @@
     }
     const rate = exchangeRates[`${from}_${to}`];
     if (!rate) { exchPreview.classList.add("hidden"); return; }
-    const received = (amount * rate).toFixed(to === "D33J" ? 2 : 8);
+    const received = (amount * rate).toFixed(to === "D33J" ? 2 : 6);
     exchPreview.textContent = `≈ ${received} ${to}`;
     exchPreview.classList.remove("hidden");
   }
@@ -520,7 +520,7 @@
       items.forEach(it => {
         const opt = document.createElement("option");
         opt.value = it.id;
-        opt.textContent = `${it.name} (${it.current_price.toFixed(4)} ETH)`;
+        opt.textContent = `${it.name}`;
         tradeItemId.appendChild(opt);
       });
     } catch (e) {
