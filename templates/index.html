@@ -17,6 +17,7 @@
       <nav class="header__nav">
         <button class="btn btn--outline" id="btnShowAll">All Items</button>
         <button class="btn btn--outline" id="btnShowWatchlist">Watchlist</button>
+        <button class="btn btn--outline" id="btnShowEmails">📧 Email List</button>
         <button class="btn btn--primary" id="btnAddItem">+ Add Item</button>
       </nav>
     </div>
@@ -36,10 +37,14 @@
       <span class="stat-card__value" id="statCategories">–</span>
       <span class="stat-card__label">Categories</span>
     </div>
+    <div class="stat-card" id="statEmailsCard">
+      <span class="stat-card__value" id="statEmails">–</span>
+      <span class="stat-card__label">Email Contacts</span>
+    </div>
   </section>
 
   <!-- ── Search / Filter ── -->
-  <section class="toolbar">
+  <section class="toolbar" id="itemsToolbar">
     <div class="search-wrap">
       <input
         type="search"
@@ -57,9 +62,30 @@
   </section>
 
   <!-- ── Item Grid ── -->
-  <main class="main">
+  <main class="main" id="itemsView">
     <div class="item-grid" id="itemGrid">
       <p class="empty-state" id="emptyState">Loading items…</p>
+    </div>
+  </main>
+
+  <!-- ── Email List Toolbar ── -->
+  <section class="toolbar hidden" id="emailsToolbar">
+    <div class="search-wrap">
+      <input
+        type="search"
+        id="emailSearchInput"
+        class="search-input"
+        placeholder="Search by name or email…"
+        aria-label="Search contacts"
+      />
+    </div>
+    <button class="btn btn--primary" id="btnAddEmail">+ Add Contact</button>
+  </section>
+
+  <!-- ── Email List ── -->
+  <main class="main hidden" id="emailsView">
+    <div class="contact-list" id="contactList">
+      <p class="empty-state" id="emailEmptyState">Loading contacts…</p>
     </div>
   </main>
 
@@ -134,6 +160,46 @@
       <div class="modal__body" id="historyBody">
         <p class="empty-state">No history yet.</p>
       </div>
+    </div>
+  </div>
+
+  <!-- ── Add / Edit Email Contact Modal ── -->
+  <div class="modal-backdrop hidden" id="emailModalBackdrop" role="dialog" aria-modal="true" aria-labelledby="emailModalTitle">
+    <div class="modal">
+      <div class="modal__header">
+        <h2 class="modal__title" id="emailModalTitle">Add Contact</h2>
+        <button class="modal__close" id="emailModalClose" aria-label="Close">&times;</button>
+      </div>
+      <form class="modal__form" id="emailForm" novalidate>
+        <input type="hidden" id="emailFieldId" />
+
+        <div class="form-row">
+          <label for="emailFieldName">Name <span class="required">*</span></label>
+          <input type="text" id="emailFieldName" placeholder="Full name" required maxlength="200" />
+          <span class="field-error" id="emailErrorName"></span>
+        </div>
+
+        <div class="form-row">
+          <label for="emailFieldEmail">Email <span class="required">*</span></label>
+          <input type="email" id="emailFieldEmail" placeholder="address@example.com" required maxlength="254" />
+          <span class="field-error" id="emailErrorEmail"></span>
+        </div>
+
+        <div class="form-row">
+          <label for="emailFieldPhone">Phone</label>
+          <input type="tel" id="emailFieldPhone" placeholder="Optional" maxlength="50" />
+        </div>
+
+        <div class="form-row">
+          <label for="emailFieldNotes">Notes</label>
+          <textarea id="emailFieldNotes" rows="3" placeholder="Any notes about this contact…" maxlength="1000"></textarea>
+        </div>
+
+        <div class="modal__actions">
+          <button type="button" class="btn btn--ghost" id="emailBtnCancel">Cancel</button>
+          <button type="submit" class="btn btn--primary" id="emailBtnSubmit">Save</button>
+        </div>
+      </form>
     </div>
   </div>
 

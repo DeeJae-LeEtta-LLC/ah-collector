@@ -1,6 +1,7 @@
 /**
  * AH Collector – frontend JavaScript
- * Communicates with the Flask REST API to manage tracked auction-house items.
+ * Communicates with the Flask REST API to manage tracked auction-house items
+ * and email contacts for the call log.
  */
 
 (() => {
@@ -11,6 +12,10 @@
   let allItems = [];
   let currentFilter = { search: "", category: "", watchlisted: false };
 
+  let allContacts = [];
+  let emailSearchQuery = "";
+  let currentView = "items"; // "items" | "emails"
+
   // ── DOM refs ─────────────────────────────────────────────────────────────
 
   const itemGrid        = document.getElementById("itemGrid");
@@ -18,12 +23,22 @@
   const statTotal       = document.getElementById("statTotal");
   const statWatchlisted = document.getElementById("statWatchlisted");
   const statCategories  = document.getElementById("statCategories");
+  const statEmails      = document.getElementById("statEmails");
   const filterCategory  = document.getElementById("filterCategory");
   const searchInput     = document.getElementById("searchInput");
+
+  // view containers
+  const itemsToolbar  = document.getElementById("itemsToolbar");
+  const itemsView     = document.getElementById("itemsView");
+  const emailsToolbar = document.getElementById("emailsToolbar");
+  const emailsView    = document.getElementById("emailsView");
+  const contactList   = document.getElementById("contactList");
+  const emailEmptyState = document.getElementById("emailEmptyState");
 
   // nav buttons
   const btnShowAll       = document.getElementById("btnShowAll");
   const btnShowWatchlist = document.getElementById("btnShowWatchlist");
+  const btnShowEmails    = document.getElementById("btnShowEmails");
   const btnAddItem       = document.getElementById("btnAddItem");
 
   // item modal
@@ -51,6 +66,24 @@
   const historyTitle    = document.getElementById("historyTitle");
   const historyBody     = document.getElementById("historyBody");
   const historyClose    = document.getElementById("historyClose");
+
+  // email modal
+  const emailModalBackdrop = document.getElementById("emailModalBackdrop");
+  const emailModalTitle    = document.getElementById("emailModalTitle");
+  const emailForm          = document.getElementById("emailForm");
+  const emailModalClose    = document.getElementById("emailModalClose");
+  const emailBtnCancel     = document.getElementById("emailBtnCancel");
+  const emailBtnSubmit     = document.getElementById("emailBtnSubmit");
+
+  const emailFieldId    = document.getElementById("emailFieldId");
+  const emailFieldName  = document.getElementById("emailFieldName");
+  const emailFieldEmail = document.getElementById("emailFieldEmail");
+  const emailFieldPhone = document.getElementById("emailFieldPhone");
+  const emailFieldNotes = document.getElementById("emailFieldNotes");
+  const emailErrorName  = document.getElementById("emailErrorName");
+  const emailErrorEmail = document.getElementById("emailErrorEmail");
+  const emailSearchInput = document.getElementById("emailSearchInput");
+  const btnAddEmail     = document.getElementById("btnAddEmail");
 
   // toast
   const toast = document.getElementById("toast");
@@ -80,22 +113,52 @@
     return res.json();
   }
 
+  // ── View switching ────────────────────────────────────────────────────────
+
+  function showItemsView() {
+    currentView = "items";
+    itemsToolbar.classList.remove("hidden");
+    itemsView.classList.remove("hidden");
+    emailsToolbar.classList.add("hidden");
+    emailsView.classList.add("hidden");
+    btnAddItem.classList.remove("hidden");
+    btnShowAll.classList.add("active");
+    btnShowWatchlist.classList.remove("active");
+    btnShowEmails.classList.remove("active");
+  }
+
+  function showEmailsView() {
+    currentView = "emails";
+    itemsToolbar.classList.add("hidden");
+    itemsView.classList.add("hidden");
+    emailsToolbar.classList.remove("hidden");
+    emailsView.classList.remove("hidden");
+    btnAddItem.classList.add("hidden");
+    btnShowAll.classList.remove("active");
+    btnShowWatchlist.classList.remove("active");
+    btnShowEmails.classList.add("active");
+    loadContacts();
+  }
+
   // ── Load data ────────────────────────────────────────────────────────────
 
   async function loadStats() {
     try {
-      const data = await apiFetch("/api/stats");
-      statTotal.textContent       = data.total_items;
-      statWatchlisted.textContent = data.watchlisted_items;
-      statCategories.textContent  = data.categories.length;
+      const [statsData, emailsData] = await Promise.all([
+        apiFetch("/api/stats"),
+        apiFetch("/api/emails"),
+      ]);
+      statTotal.textContent       = statsData.total_items;
+      statWatchlisted.textContent = statsData.watchlisted_items;
+      statCategories.textContent  = statsData.categories.length;
+      statEmails.textContent      = emailsData.length;
 
       // Populate category filter
       const currentVal = filterCategory.value;
-      // Remove existing options except the first ("All categories")
       while (filterCategory.options.length > 1) {
         filterCategory.remove(1);
       }
-      data.categories.forEach(({ category }) => {
+      statsData.categories.forEach(({ category }) => {
         const opt = document.createElement("option");
         opt.value = category;
         opt.textContent = category;
@@ -122,12 +185,25 @@
     renderGrid();
   }
 
+  async function loadContacts() {
+    const params = new URLSearchParams();
+    if (emailSearchQuery) params.set("search", emailSearchQuery);
+
+    try {
+      allContacts = await apiFetch(`/api/emails?${params.toString()}`);
+    } catch (e) {
+      showToast("Failed to load contacts: " + e.message, "error");
+      allContacts = [];
+    }
+    renderContacts();
+  }
+
   async function refreshAll() {
     await loadStats();
     await loadItems();
   }
 
-  // ── Render ───────────────────────────────────────────────────────────────
+  // ── Render items ─────────────────────────────────────────────────────────
 
   function formatPrice(eth) {
     if (eth == null) return "–";
@@ -206,7 +282,51 @@
     return card;
   }
 
-  // ── Modal helpers ────────────────────────────────────────────────────────
+  // ── Render contacts ───────────────────────────────────────────────────────
+
+  function renderContacts() {
+    contactList.innerHTML = "";
+
+    if (allContacts.length === 0) {
+      const p = document.createElement("p");
+      p.className = "empty-state";
+      p.textContent = emailSearchQuery
+        ? "No contacts match your search."
+        : "No contacts yet. Click '+ Add Contact' to get started.";
+      contactList.appendChild(p);
+      return;
+    }
+
+    allContacts.forEach((contact) => {
+      contactList.appendChild(buildContactRow(contact));
+    });
+  }
+
+  function buildContactRow(contact) {
+    const row = document.createElement("div");
+    row.className = "contact-row";
+    row.dataset.id = contact.id;
+
+    row.innerHTML = `
+      <div class="contact-row__info">
+        <div class="contact-row__name">${escHtml(contact.name)}</div>
+        <a class="contact-row__email" href="mailto:${escHtml(contact.email)}">${escHtml(contact.email)}</a>
+        ${contact.phone ? `<div class="contact-row__phone">📞 ${escHtml(contact.phone)}</div>` : ""}
+        ${contact.notes ? `<div class="contact-row__notes">${escHtml(contact.notes)}</div>` : ""}
+      </div>
+      <div class="contact-row__actions">
+        <button class="btn btn--sm btn--outline btn-edit-contact" title="Edit">✏️ Edit</button>
+        <button class="btn btn--sm btn--danger btn-delete-contact" title="Delete">🗑</button>
+      </div>
+    `;
+
+    row.querySelector(".btn-edit-contact").addEventListener("click", () => openEditEmailModal(contact));
+    row.querySelector(".btn-delete-contact").addEventListener("click", () => deleteContact(contact));
+
+    return row;
+  }
+
+  // ── Item Modal helpers ────────────────────────────────────────────────────
 
   function openAddModal() {
     modalTitle.textContent   = "Add Item";
@@ -251,7 +371,44 @@
     errorPrice.textContent = "";
   }
 
-  // ── Form submit ──────────────────────────────────────────────────────────
+  // ── Email Modal helpers ───────────────────────────────────────────────────
+
+  function openAddEmailModal() {
+    emailModalTitle.textContent  = "Add Contact";
+    emailBtnSubmit.textContent   = "Add Contact";
+    emailFieldId.value           = "";
+    emailFieldName.value         = "";
+    emailFieldEmail.value        = "";
+    emailFieldPhone.value        = "";
+    emailFieldNotes.value        = "";
+    clearEmailErrors();
+    emailModalBackdrop.classList.remove("hidden");
+    emailFieldName.focus();
+  }
+
+  function openEditEmailModal(contact) {
+    emailModalTitle.textContent  = "Edit Contact";
+    emailBtnSubmit.textContent   = "Save Changes";
+    emailFieldId.value           = contact.id;
+    emailFieldName.value         = contact.name;
+    emailFieldEmail.value        = contact.email;
+    emailFieldPhone.value        = contact.phone || "";
+    emailFieldNotes.value        = contact.notes || "";
+    clearEmailErrors();
+    emailModalBackdrop.classList.remove("hidden");
+    emailFieldName.focus();
+  }
+
+  function closeEmailModal() {
+    emailModalBackdrop.classList.add("hidden");
+  }
+
+  function clearEmailErrors() {
+    emailErrorName.textContent  = "";
+    emailErrorEmail.textContent = "";
+  }
+
+  // ── Item Form submit ──────────────────────────────────────────────────────
 
   itemForm.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -298,7 +455,51 @@
     }
   });
 
-  // ── Delete ───────────────────────────────────────────────────────────────
+  // ── Email Form submit ─────────────────────────────────────────────────────
+
+  emailForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    clearEmailErrors();
+
+    const name  = emailFieldName.value.trim();
+    const email = emailFieldEmail.value.trim();
+    let valid   = true;
+
+    if (!name) {
+      emailErrorName.textContent = "Name is required.";
+      valid = false;
+    }
+    if (!email) {
+      emailErrorEmail.textContent = "Email is required.";
+      valid = false;
+    }
+    if (!valid) return;
+
+    const payload = {
+      name,
+      email,
+      phone: emailFieldPhone.value.trim() || null,
+      notes: emailFieldNotes.value.trim() || null,
+    };
+
+    const id = emailFieldId.value;
+    try {
+      if (id) {
+        await apiFetch(`/api/emails/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+        showToast("Contact updated.");
+      } else {
+        await apiFetch("/api/emails", { method: "POST", body: JSON.stringify(payload) });
+        showToast("Contact added.");
+      }
+      closeEmailModal();
+      loadStats();
+      loadContacts();
+    } catch (err) {
+      showToast(err.message, "error");
+    }
+  });
+
+  // ── Delete item ───────────────────────────────────────────────────────────
 
   async function deleteItem(item) {
     if (!confirm(`Delete "${item.name}"?`)) return;
@@ -306,6 +507,20 @@
       await apiFetch(`/api/items/${item.id}`, { method: "DELETE" });
       showToast("Item deleted.");
       refreshAll();
+    } catch (err) {
+      showToast(err.message, "error");
+    }
+  }
+
+  // ── Delete contact ────────────────────────────────────────────────────────
+
+  async function deleteContact(contact) {
+    if (!confirm(`Delete contact "${contact.name}"?`)) return;
+    try {
+      await apiFetch(`/api/emails/${contact.id}`, { method: "DELETE" });
+      showToast("Contact deleted.");
+      loadStats();
+      loadContacts();
     } catch (err) {
       showToast(err.message, "error");
     }
@@ -383,18 +598,32 @@
     loadItems();
   });
 
+  let emailSearchTimer = null;
+
+  emailSearchInput.addEventListener("input", () => {
+    clearTimeout(emailSearchTimer);
+    emailSearchTimer = setTimeout(() => {
+      emailSearchQuery = emailSearchInput.value.trim();
+      loadContacts();
+    }, 300);
+  });
+
   btnShowAll.addEventListener("click", () => {
     currentFilter.watchlisted = false;
-    btnShowAll.classList.add("active");
-    btnShowWatchlist.classList.remove("active");
+    showItemsView();
     loadItems();
   });
 
   btnShowWatchlist.addEventListener("click", () => {
     currentFilter.watchlisted = true;
-    btnShowWatchlist.classList.add("active");
+    showItemsView();
     btnShowAll.classList.remove("active");
+    btnShowWatchlist.classList.add("active");
     loadItems();
+  });
+
+  btnShowEmails.addEventListener("click", () => {
+    showEmailsView();
   });
 
   // ── Event wiring ─────────────────────────────────────────────────────────
@@ -404,6 +633,10 @@
   btnCancel.addEventListener("click", closeModal);
   historyClose.addEventListener("click", () => historyBackdrop.classList.add("hidden"));
 
+  btnAddEmail.addEventListener("click", openAddEmailModal);
+  emailModalClose.addEventListener("click", closeEmailModal);
+  emailBtnCancel.addEventListener("click", closeEmailModal);
+
   // Close modal on backdrop click
   modalBackdrop.addEventListener("click", (e) => {
     if (e.target === modalBackdrop) closeModal();
@@ -411,11 +644,15 @@
   historyBackdrop.addEventListener("click", (e) => {
     if (e.target === historyBackdrop) historyBackdrop.classList.add("hidden");
   });
+  emailModalBackdrop.addEventListener("click", (e) => {
+    if (e.target === emailModalBackdrop) closeEmailModal();
+  });
 
   // Keyboard: Escape closes modals
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       closeModal();
+      closeEmailModal();
       historyBackdrop.classList.add("hidden");
     }
   });
