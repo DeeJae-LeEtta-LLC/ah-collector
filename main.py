@@ -90,6 +90,35 @@ class PriceHistory(db.Model):
         }
 
 
+class EmailContact(db.Model):
+    """Stores email contacts for the call log."""
+
+    __tablename__ = "email_contacts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    email = db.Column(db.String(254), nullable=False)
+    phone = db.Column(db.String(50), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(
+        db.DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "email": self.email,
+            "phone": self.phone,
+            "notes": self.notes,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Frontend routes
 # ──────────────────────────────────────────────────────────────────────────────
@@ -262,6 +291,95 @@ def get_stats():
             "categories": category_data,
         }
     )
+
+
+@app.route("/api/emails", methods=["GET"])
+def get_emails():
+    """Return all email contacts, with optional search."""
+    search = request.args.get("search", "").strip()
+
+    query = EmailContact.query
+
+    if search:
+        query = query.filter(
+            EmailContact.name.ilike(f"%{search}%")
+            | EmailContact.email.ilike(f"%{search}%")
+        )
+
+    contacts = query.order_by(desc(EmailContact.updated_at)).all()
+    return jsonify([c.to_dict() for c in contacts])
+
+
+@app.route("/api/emails/<int:contact_id>", methods=["GET"])
+def get_email(contact_id):
+    """Return a single email contact."""
+    contact = db.get_or_404(EmailContact, contact_id)
+    return jsonify(contact.to_dict())
+
+
+@app.route("/api/emails", methods=["POST"])
+def create_email():
+    """Create a new email contact."""
+    payload = request.get_json(silent=True)
+    if not payload:
+        abort(400, description="Request body must be JSON.")
+
+    name = payload.get("name", "").strip()
+    if not name:
+        abort(400, description="'name' is required.")
+
+    email = payload.get("email", "").strip()
+    if not email:
+        abort(400, description="'email' is required.")
+
+    contact = EmailContact(
+        name=name,
+        email=email,
+        phone=payload.get("phone", "").strip() or None,
+        notes=payload.get("notes", "").strip() or None,
+    )
+    db.session.add(contact)
+    db.session.commit()
+    return jsonify(contact.to_dict()), 201
+
+
+@app.route("/api/emails/<int:contact_id>", methods=["PUT"])
+def update_email(contact_id):
+    """Update an existing email contact."""
+    contact = db.get_or_404(EmailContact, contact_id)
+    payload = request.get_json(silent=True)
+    if not payload:
+        abort(400, description="Request body must be JSON.")
+
+    if "name" in payload:
+        name = payload["name"].strip()
+        if not name:
+            abort(400, description="'name' cannot be empty.")
+        contact.name = name
+
+    if "email" in payload:
+        email = payload["email"].strip()
+        if not email:
+            abort(400, description="'email' cannot be empty.")
+        contact.email = email
+
+    if "phone" in payload:
+        contact.phone = payload["phone"].strip() or None
+    if "notes" in payload:
+        contact.notes = payload["notes"].strip() or None
+
+    contact.updated_at = datetime.now(timezone.utc)
+    db.session.commit()
+    return jsonify(contact.to_dict())
+
+
+@app.route("/api/emails/<int:contact_id>", methods=["DELETE"])
+def delete_email(contact_id):
+    """Delete an email contact."""
+    contact = db.get_or_404(EmailContact, contact_id)
+    db.session.delete(contact)
+    db.session.commit()
+    return jsonify({"message": f"Contact {contact_id} deleted."})
 
 
 # ──────────────────────────────────────────────────────────────────────────────
