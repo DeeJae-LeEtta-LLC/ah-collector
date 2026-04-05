@@ -122,8 +122,6 @@
     emailsToolbar.classList.add("hidden");
     emailsView.classList.add("hidden");
     btnAddItem.classList.remove("hidden");
-    btnShowAll.classList.add("active");
-    btnShowWatchlist.classList.remove("active");
     btnShowEmails.classList.remove("active");
   }
 
@@ -611,6 +609,8 @@
   btnShowAll.addEventListener("click", () => {
     currentFilter.watchlisted = false;
     showItemsView();
+    btnShowAll.classList.add("active");
+    btnShowWatchlist.classList.remove("active");
     loadItems();
   });
 
