@@ -142,7 +142,7 @@ def _calculate_zone(lat, lon):
         zone = "Arctic Nexus"
     elif lat > 30:
         zone = "Northern Grid"
-    elif lat > 0:
+    elif lat >= 0:
         zone = "Equatorial Circuit"
     elif lat > -60:
         zone = "Southern Matrix"
