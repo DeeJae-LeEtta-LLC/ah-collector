@@ -198,7 +198,7 @@
             </div>
           </div>
           ${progressBar(f.utilization_pct, "solar")}
-          <div style="font-size:.72rem;color:var(--color-text-muted)">${fmt(f.utilization_pct)} % utilisation</div>
+          <div style="font-size:.72rem;color:var(--color-text-muted)">${fmt(f.utilization_pct)} % utilization</div>
           ${f.location ? `<div style="font-size:.75rem;color:var(--color-text-muted)">📍 ${esc(f.location)}</div>` : ""}
           ${pill(f.is_active ? "Active" : "Inactive", f.is_active ? "active" : "inactive")}
         </div>
@@ -385,7 +385,7 @@
 
   async function runAIAnalysis() {
     btnAnalyze.disabled = true;
-    btnAnalyze.textContent = "⏳ Analysing…";
+    btnAnalyze.textContent = "⏳ Analyzing…";
     try {
       const { summary, recommendations } = await apiFetch("/api/ai/analyze", { method: "POST" });
       pendingRecs = recommendations;

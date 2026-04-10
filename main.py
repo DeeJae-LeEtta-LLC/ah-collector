@@ -345,7 +345,7 @@ class EnergyAIController:
     Decision priority:
       1. Safety  – over-temperature shutdowns and battery thermal protection
       2. Cooling – maintain target zone temperatures
-      3. Energy  – maximise mining yield from available solar / stored energy
+      3. Energy  – maximize mining yield from available solar / stored energy
     """
 
     # ── Temperature thresholds (°C) ──────────────────────────────────────────
