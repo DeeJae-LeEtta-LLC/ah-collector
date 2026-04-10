@@ -18,6 +18,7 @@
   const statTotal       = document.getElementById("statTotal");
   const statWatchlisted = document.getElementById("statWatchlisted");
   const statCategories  = document.getElementById("statCategories");
+  const statSignups     = document.getElementById("statSignups");
   const filterCategory  = document.getElementById("filterCategory");
   const searchInput     = document.getElementById("searchInput");
 
@@ -104,6 +105,13 @@
       });
     } catch (e) {
       console.error("Failed to load stats:", e);
+    }
+
+    try {
+      const obData = await apiFetch("/api/onboard/stats");
+      if (statSignups) statSignups.textContent = obData.total_signups;
+    } catch (e) {
+      console.error("Failed to load signup stats:", e);
     }
   }
 
