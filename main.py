@@ -4,6 +4,7 @@ Flask backend providing REST API and serving the frontend.
 """
 
 import os
+import re
 import json
 from datetime import datetime, timezone
 
@@ -90,6 +91,67 @@ class PriceHistory(db.Model):
         }
 
 
+class OnboardingSignup(db.Model):
+    """Stores player onboarding registrations with GPS drop-zone data."""
+
+    __tablename__ = "onboarding_signups"
+
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(254), nullable=False, unique=True)
+    latitude = db.Column(db.Float, nullable=True)
+    longitude = db.Column(db.Float, nullable=True)
+    city_zone = db.Column(db.String(100), nullable=True)
+    sector_x = db.Column(db.Integer, nullable=True)
+    sector_y = db.Column(db.Integer, nullable=True)
+    ip_address = db.Column(db.String(45), nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "email": self.email,
+            "latitude": self.latitude,
+            "longitude": self.longitude,
+            "city_zone": self.city_zone,
+            "sector_x": self.sector_x,
+            "sector_y": self.sector_y,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Onboarding helpers
+# ──────────────────────────────────────────────────────────────────────────────
+
+_EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$")
+
+
+def _calculate_zone(lat, lon):
+    """Derive a cyberpunk city zone and 100×100 sector grid from GPS coords."""
+    if lat is None or lon is None:
+        return "Unknown Zone", 0, 0
+
+    sector_x = int((lon + 180) / 360 * 100)
+    sector_y = int((lat + 90) / 180 * 100)
+
+    # Clamp to valid range
+    sector_x = max(0, min(99, sector_x))
+    sector_y = max(0, min(99, sector_y))
+
+    if lat > 60:
+        zone = "Arctic Nexus"
+    elif lat > 30:
+        zone = "Northern Grid"
+    elif lat >= 0:
+        zone = "Equatorial Circuit"
+    elif lat > -60:
+        zone = "Southern Matrix"
+    else:
+        zone = "Antarctic Void"
+
+    return zone, sector_x, sector_y
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Frontend routes
 # ──────────────────────────────────────────────────────────────────────────────
@@ -98,6 +160,12 @@ class PriceHistory(db.Model):
 def index():
     """Serve the main dashboard."""
     return render_template("index.html")
+
+
+@app.route("/onboard")
+def onboard():
+    """Serve the onboarding panel."""
+    return render_template("onboard.html")
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -262,6 +330,80 @@ def get_stats():
             "categories": category_data,
         }
     )
+
+
+@app.route("/api/onboard", methods=["POST"])
+def onboard_signup():
+    """Register a new player with email and optional GPS location."""
+    payload = request.get_json(silent=True)
+    if not payload:
+        abort(400, description="Request body must be JSON.")
+
+    email = payload.get("email", "").strip().lower()
+    if not email or not _EMAIL_RE.match(email):
+        abort(400, description="A valid email address is required.")
+
+    lat = payload.get("latitude")
+    lon = payload.get("longitude")
+
+    try:
+        lat = float(lat) if lat is not None else None
+        lon = float(lon) if lon is not None else None
+    except (TypeError, ValueError):
+        lat = lon = None
+
+    # Clamp to valid geographic ranges
+    if lat is not None and not (-90.0 <= lat <= 90.0):
+        lat = None
+    if lon is not None and not (-180.0 <= lon <= 180.0):
+        lon = None
+
+    zone, sx, sy = _calculate_zone(lat, lon)
+
+    # Return existing signup without duplicating
+    existing = OnboardingSignup.query.filter_by(email=email).first()
+    if existing:
+        return jsonify(
+            {
+                "message": "Welcome back, Agent.",
+                "city_zone": existing.city_zone,
+                "sector_x": existing.sector_x,
+                "sector_y": existing.sector_y,
+                "returning": True,
+            }
+        )
+
+    ip = request.headers.get("X-Forwarded-For", request.remote_addr) or ""
+    ip = ip.split(",")[0].strip()[:45]
+
+    signup = OnboardingSignup(
+        email=email,
+        latitude=lat,
+        longitude=lon,
+        city_zone=zone,
+        sector_x=sx,
+        sector_y=sy,
+        ip_address=ip or None,
+    )
+    db.session.add(signup)
+    db.session.commit()
+
+    return jsonify(
+        {
+            "message": "Agent registered. Initiating drop sequence.",
+            "city_zone": zone,
+            "sector_x": sx,
+            "sector_y": sy,
+            "returning": False,
+        }
+    ), 201
+
+
+@app.route("/api/onboard/stats", methods=["GET"])
+def onboard_stats():
+    """Return total onboarding signup count."""
+    total = OnboardingSignup.query.count()
+    return jsonify({"total_signups": total})
 
 
 # ──────────────────────────────────────────────────────────────────────────────

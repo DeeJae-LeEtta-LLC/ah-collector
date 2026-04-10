@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Solar City – Enter the Grid</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+  <link rel="stylesheet" href="/static/css/onboard.css" />
+</head>
+<body class="onboard-body">
+
+  <!-- Animated scanline overlay -->
+  <div class="ob-scanlines" aria-hidden="true"></div>
+
+  <div class="ob-container">
+
+    <!-- Logo / brand -->
+    <header class="ob-header">
+      <div class="ob-logo">⚡</div>
+      <h1 class="ob-title">SOLAR CITY</h1>
+      <p class="ob-subtitle">Cyberpunk MMO · Smart-Contract Economy · Crypto-Driven Society</p>
+    </header>
+
+    <!-- Flavour text -->
+    <section class="ob-lore" aria-label="Game lore">
+      <p>
+        The megacorp wars are over. Solar City is rebuilding on a new foundation of
+        <strong>renewable energy</strong>, <strong>blockchain smart contracts</strong>, and
+        <strong>player-owned economies</strong>. Every Agent is dropped near their real-world
+        coordinates—your city, your sector, your future.
+      </p>
+    </section>
+
+    <!-- GPS panel -->
+    <section class="ob-gps-panel" id="gpsPanel">
+      <h2 class="ob-section-title">📡 Detect Drop Zone</h2>
+      <p class="ob-hint">Share your location so the Grid can assign you a sector near your real-world coordinates.</p>
+
+      <button class="btn btn--primary ob-gps-btn" id="btnDetectGPS">
+        📍 Detect My Location
+      </button>
+
+      <div class="ob-zone-display hidden" id="zoneDisplay">
+        <div class="ob-zone-row">
+          <span class="ob-zone-label">Zone</span>
+          <span class="ob-zone-value" id="zoneName">—</span>
+        </div>
+        <div class="ob-zone-row">
+          <span class="ob-zone-label">Sector</span>
+          <span class="ob-zone-value" id="zoneSector">—</span>
+        </div>
+        <div class="ob-zone-row">
+          <span class="ob-zone-label">Coordinates</span>
+          <span class="ob-zone-value" id="zoneCoords">—</span>
+        </div>
+      </div>
+
+      <p class="ob-gps-skip" id="gpsSkipMsg">
+        <button class="btn btn--ghost btn--sm" id="btnSkipGPS">Skip – assign default sector</button>
+      </p>
+    </section>
+
+    <!-- Registration form -->
+    <section class="ob-form-section">
+      <h2 class="ob-section-title">🔐 Register Your Agent</h2>
+      <form class="ob-form" id="onboardForm" novalidate>
+
+        <div class="form-row">
+          <label for="obEmail">Email Address <span class="required">*</span></label>
+          <input
+            type="email"
+            id="obEmail"
+            class="ob-input"
+            placeholder="agent@solarcity.net"
+            autocomplete="email"
+            required
+            maxlength="254"
+          />
+          <span class="field-error" id="obEmailError"></span>
+        </div>
+
+        <!-- Hidden GPS fields populated by JS -->
+        <input type="hidden" id="obLat" />
+        <input type="hidden" id="obLon" />
+
+        <button type="submit" class="btn btn--primary ob-submit-btn" id="btnEnterGrid">
+          ⚡ Enter the Grid
+        </button>
+      </form>
+    </section>
+
+    <!-- Post-signup confirmation (hidden until success) -->
+    <section class="ob-confirm hidden" id="obConfirm" aria-live="polite">
+      <div class="ob-confirm-icon">✅</div>
+      <h2 class="ob-confirm-title" id="obConfirmTitle">Agent Registered</h2>
+      <p class="ob-confirm-msg" id="obConfirmMsg"></p>
+      <div class="ob-zone-display" id="obConfirmZone">
+        <div class="ob-zone-row">
+          <span class="ob-zone-label">Your Zone</span>
+          <span class="ob-zone-value" id="obConfirmZoneName">—</span>
+        </div>
+        <div class="ob-zone-row">
+          <span class="ob-zone-label">Sector</span>
+          <span class="ob-zone-value" id="obConfirmSector">—</span>
+        </div>
+      </div>
+      <p class="ob-redirect-msg">Redirecting to the Auction House dashboard…</p>
+    </section>
+
+  </div><!-- /.ob-container -->
+
+  <script>
+  (() => {
+    "use strict";
+
+    const btnDetectGPS = document.getElementById("btnDetectGPS");
+    const btnSkipGPS   = document.getElementById("btnSkipGPS");
+    const gpsSkipMsg   = document.getElementById("gpsSkipMsg");
+    const zoneDisplay  = document.getElementById("zoneDisplay");
+    const zoneName     = document.getElementById("zoneName");
+    const zoneSector   = document.getElementById("zoneSector");
+    const zoneCoords   = document.getElementById("zoneCoords");
+
+    const onboardForm  = document.getElementById("onboardForm");
+    const obEmail      = document.getElementById("obEmail");
+    const obEmailError = document.getElementById("obEmailError");
+    const obLat        = document.getElementById("obLat");
+    const obLon        = document.getElementById("obLon");
+    const btnEnterGrid = document.getElementById("btnEnterGrid");
+
+    const obConfirm      = document.getElementById("obConfirm");
+    const obConfirmTitle = document.getElementById("obConfirmTitle");
+    const obConfirmMsg   = document.getElementById("obConfirmMsg");
+    const obConfirmZoneName = document.getElementById("obConfirmZoneName");
+    const obConfirmSector   = document.getElementById("obConfirmSector");
+
+    let detectedLat = null;
+    let detectedLon = null;
+
+    // ── GPS detection ────────────────────────────────────────────────────────
+
+    function showZone(zone, sx, sy, lat, lon) {
+      zoneName.textContent   = zone;
+      zoneSector.textContent = `${sx}, ${sy}`;
+      zoneCoords.textContent = (lat != null && lon != null)
+        ? `${Math.abs(lat).toFixed(4)}°${lat >= 0 ? "N" : "S"}, ${Math.abs(lon).toFixed(4)}°${lon >= 0 ? "E" : "W"}`
+        : "Unknown";
+      zoneDisplay.classList.remove("hidden");
+      gpsSkipMsg.classList.add("hidden");
+    }
+
+    btnDetectGPS.addEventListener("click", () => {
+      if (!navigator.geolocation) {
+        btnDetectGPS.textContent = "⚠ Geolocation not supported";
+        return;
+      }
+      btnDetectGPS.disabled    = true;
+      btnDetectGPS.textContent = "⏳ Scanning…";
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          detectedLat = pos.coords.latitude;
+          detectedLon = pos.coords.longitude;
+          obLat.value = detectedLat;
+          obLon.value = detectedLon;
+
+          // Derive zone client-side for instant feedback (server will recalculate)
+          const zone = deriveZone(detectedLat);
+          const sx   = Math.max(0, Math.min(99, Math.floor((detectedLon + 180) / 360 * 100)));
+          const sy   = Math.max(0, Math.min(99, Math.floor((detectedLat + 90)  / 180 * 100)));
+          showZone(zone, sx, sy, detectedLat, detectedLon);
+          btnDetectGPS.textContent = "✅ Location Detected";
+        },
+        () => {
+          btnDetectGPS.disabled    = false;
+          btnDetectGPS.textContent = "📍 Detect My Location";
+          gpsSkipMsg.classList.remove("hidden");
+          alert("Location access denied. A random sector will be assigned.");
+        }
+      );
+    });
+
+    btnSkipGPS.addEventListener("click", () => {
+      obLat.value = "";
+      obLon.value = "";
+      showZone("Random Sector", "??", "??", null, null);
+      gpsSkipMsg.classList.add("hidden");
+    });
+
+    function deriveZone(lat) {
+      if (lat > 60)  return "Arctic Nexus";
+      if (lat > 30)  return "Northern Grid";
+      if (lat > 0)   return "Equatorial Circuit";
+      if (lat > -60) return "Southern Matrix";
+      return "Antarctic Void";
+    }
+
+    // ── Form submit ──────────────────────────────────────────────────────────
+
+    onboardForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      obEmailError.textContent = "";
+
+      const email = obEmail.value.trim();
+      if (!email || !/^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/.test(email)) {
+        obEmailError.textContent = "Please enter a valid email address.";
+        obEmail.focus();
+        return;
+      }
+
+      btnEnterGrid.disabled    = true;
+      btnEnterGrid.textContent = "⏳ Connecting…";
+
+      const payload = { email };
+      const lat = parseFloat(obLat.value);
+      const lon = parseFloat(obLon.value);
+      if (!isNaN(lat) && !isNaN(lon)) {
+        payload.latitude  = lat;
+        payload.longitude = lon;
+      }
+
+      try {
+        const res = await fetch("/api/onboard", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => null);
+          throw new Error((errData && errData.description) || `Error ${res.status}`);
+        }
+
+        const data = await res.json();
+
+        // Store flag so the main dashboard won't redirect back here
+        localStorage.setItem("ah_onboarded", "1");
+
+        // Show confirmation
+        onboardForm.closest("section").classList.add("hidden");
+        document.getElementById("gpsPanel").classList.add("hidden");
+        obConfirm.classList.remove("hidden");
+        obConfirmTitle.textContent     = data.returning ? "Welcome Back, Agent" : "Agent Registered";
+        obConfirmMsg.textContent       = data.message;
+        obConfirmZoneName.textContent  = data.city_zone || "—";
+        obConfirmSector.textContent    = (data.sector_x != null && data.sector_y != null)
+          ? `${data.sector_x}, ${data.sector_y}`
+          : "—";
+
+        // Redirect to dashboard after 3 s
+        setTimeout(() => { window.location.href = "/"; }, 3000);
+
+      } catch (err) {
+        obEmailError.textContent = err.message;
+        btnEnterGrid.disabled    = false;
+        btnEnterGrid.textContent = "⚡ Enter the Grid";
+      }
+    });
+
+  })();
+  </script>
+</body>
+</html>

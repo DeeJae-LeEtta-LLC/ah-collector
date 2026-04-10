@@ -36,6 +36,10 @@
       <span class="stat-card__value" id="statCategories">–</span>
       <span class="stat-card__label">Categories</span>
     </div>
+    <div class="stat-card">
+      <span class="stat-card__value" id="statSignups">–</span>
+      <span class="stat-card__label">Agents Joined</span>
+    </div>
   </section>
 
   <!-- ── Search / Filter ── -->
@@ -141,5 +145,11 @@
   <div class="toast hidden" id="toast" role="status" aria-live="polite"></div>
 
   <script src="/static/js/app.js"></script>
+  <script>
+    // Redirect first-time visitors to the onboarding panel
+    if (!localStorage.getItem("ah_onboarded")) {
+      window.location.replace("/onboard");
+    }
+  </script>
 </body>
 </html>
