@@ -478,3 +478,195 @@ body {
   .item-grid { grid-template-columns: 1fr; }
   .stats-bar { flex-direction: column; }
 }
+
+/* ── DeeJaeLeEtta Network – Onboarding & Admin ──────────────────────────── */
+
+/* Hero banner (onboard page) */
+.onboard-hero {
+  max-width: 1280px;
+  margin: 2rem auto 0;
+  padding: 0 1.5rem;
+  text-align: center;
+}
+
+.onboard-hero__title {
+  font-size: 1.9rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: .6rem;
+}
+
+.onboard-hero__sub {
+  color: var(--color-text-muted);
+  font-size: 1rem;
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* Tab bar */
+.onboard-tabs {
+  max-width: 1280px;
+  margin: 1.75rem auto 0;
+  padding: 0 1.5rem;
+  display: flex;
+  gap: .5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.onboard-tab {
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  padding: .65rem 1.25rem;
+  font-size: .95rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color var(--transition), border-color var(--transition);
+  margin-bottom: -1px;
+}
+
+.onboard-tab:hover { color: var(--color-text); }
+
+.onboard-tab.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+/* Panels */
+.onboard-panel,
+.network-panel {
+  max-width: 1280px;
+  margin: 1.75rem auto 3rem;
+  padding: 0 1.5rem;
+}
+
+.onboard-panel.hidden,
+.network-panel.hidden { display: none; }
+
+/* Onboard card (form wrapper) */
+.onboard-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1.75rem 2rem;
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.onboard-card__title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: .35rem;
+}
+
+.onboard-card__desc {
+  color: var(--color-text-muted);
+  font-size: .9rem;
+  margin-bottom: 1.5rem;
+}
+
+.form-submit {
+  padding-top: .75rem;
+  margin-top: .5rem;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.onboard-success {
+  background: rgba(0, 229, 180, .1);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-sm);
+  padding: 1.25rem 1.5rem;
+  color: var(--color-accent);
+  font-size: .95rem;
+  line-height: 1.6;
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.onboard-success.hidden { display: none; }
+
+/* Network admin table */
+.network-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.network-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .88rem;
+  white-space: nowrap;
+}
+
+.network-table th {
+  text-align: left;
+  padding: .65rem .9rem;
+  color: var(--color-text-muted);
+  font-weight: 600;
+  font-size: .75rem;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.network-table td {
+  padding: .7rem .9rem;
+  border-bottom: 1px solid var(--color-surface-2);
+  color: var(--color-text);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.network-table tr:last-child td { border-bottom: none; }
+
+.network-table tr:hover td { background: var(--color-surface-2); }
+
+.wallet-cell {
+  font-family: monospace;
+  font-size: .8rem;
+  color: var(--color-text-muted);
+  max-width: 140px;
+}
+
+.link {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+.link:hover { color: var(--color-primary-h); text-decoration: underline; }
+
+.badge {
+  display: inline-block;
+  padding: .2rem .55rem;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.badge--yes {
+  background: rgba(0, 229, 180, .15);
+  color: var(--color-accent);
+}
+
+.badge--no {
+  background: rgba(255, 85, 119, .12);
+  color: var(--color-danger);
+}
+
+/* Responsive – network */
+@media (max-width: 600px) {
+  .onboard-card { padding: 1.25rem 1rem; }
+  .onboard-tabs { gap: 0; }
+  .onboard-tab { padding: .55rem .75rem; font-size: .85rem; }
+}

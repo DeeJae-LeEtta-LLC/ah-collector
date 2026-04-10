@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DeeJaeLeEtta Network – Join Us</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+  <!-- ── Header ── -->
+  <header class="header">
+    <div class="header__inner">
+      <div class="header__brand">
+        <span class="header__logo">🌐</span>
+        <h1 class="header__title">DeeJaeLeEtta Network</h1>
+      </div>
+      <nav class="header__nav">
+        <a class="btn btn--outline" href="/">AH Collector</a>
+        <a class="btn btn--outline" href="/network">Network Admin</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ── Hero ── -->
+  <section class="onboard-hero">
+    <h2 class="onboard-hero__title">Join the DeeJaeLeEtta Crypto Network</h2>
+    <p class="onboard-hero__sub">
+      Whether you're a customer, a potential team member, or an investor –
+      complete your onboarding below and we'll be in touch.
+    </p>
+  </section>
+
+  <!-- ── Tab bar ── -->
+  <div class="onboard-tabs" role="tablist">
+    <button class="onboard-tab active" role="tab" data-tab="customer" id="tabCustomer">
+      👤 Customer
+    </button>
+    <button class="onboard-tab" role="tab" data-tab="employee" id="tabEmployee">
+      💼 Employee
+    </button>
+    <button class="onboard-tab" role="tab" data-tab="investor" id="tabInvestor">
+      📈 Investor
+    </button>
+  </div>
+
+  <!-- ── Forms ── -->
+  <main class="onboard-main">
+
+    <!-- ── Customer Form ── -->
+    <section class="onboard-panel active" id="panelCustomer" role="tabpanel" aria-labelledby="tabCustomer">
+      <div class="onboard-card">
+        <h3 class="onboard-card__title">Customer Onboarding</h3>
+        <p class="onboard-card__desc">Tell us about yourself and your crypto interests.</p>
+        <form id="customerForm" novalidate>
+          <div class="form-row">
+            <label for="cFullName">Full Name <span class="required">*</span></label>
+            <input type="text" id="cFullName" placeholder="Jane Doe" maxlength="200" required />
+          </div>
+          <div class="form-row form-row--split">
+            <div>
+              <label for="cEmail">Email <span class="required">*</span></label>
+              <input type="email" id="cEmail" placeholder="jane@example.com" maxlength="254" required />
+            </div>
+            <div>
+              <label for="cPhone">Phone</label>
+              <input type="tel" id="cPhone" placeholder="+1 555 000 0000" maxlength="50" />
+            </div>
+          </div>
+          <div class="form-row form-row--split">
+            <div>
+              <label for="cCountry">Country</label>
+              <input type="text" id="cCountry" placeholder="United States" maxlength="100" />
+            </div>
+            <div>
+              <label for="cPreferredCrypto">Preferred Cryptocurrency</label>
+              <select id="cPreferredCrypto">
+                <option value="">Select…</option>
+                {% for c in crypto_choices %}
+                <option value="{{ c }}">{{ c }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <label for="cWallet">Crypto Wallet Address</label>
+            <input type="text" id="cWallet" placeholder="0x… or bc1…" maxlength="200" />
+          </div>
+          <div class="form-row">
+            <label for="cInterests">Investment Interests</label>
+            <input type="text" id="cInterests" placeholder="e.g. DeFi, NFTs, staking" maxlength="500" />
+          </div>
+          <div class="form-row">
+            <label for="cNotes">Additional Notes</label>
+            <textarea id="cNotes" rows="3" maxlength="1000" placeholder="Anything else you'd like us to know…"></textarea>
+          </div>
+          <div class="form-submit">
+            <button type="submit" class="btn btn--primary">Submit Application</button>
+          </div>
+        </form>
+        <div class="onboard-success hidden" id="customerSuccess">
+          ✅ Thank you! Your customer application has been received. We'll be in touch soon.
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Employee Form ── -->
+    <section class="onboard-panel hidden" id="panelEmployee" role="tabpanel" aria-labelledby="tabEmployee">
+      <div class="onboard-card">
+        <h3 class="onboard-card__title">Employee Onboarding</h3>
+        <p class="onboard-card__desc">Interested in joining our team? Share your details and skills.</p>
+        <form id="employeeForm" novalidate>
+          <div class="form-row">
+            <label for="eFullName">Full Name <span class="required">*</span></label>
+            <input type="text" id="eFullName" placeholder="John Smith" maxlength="200" required />
+          </div>
+          <div class="form-row form-row--split">
+            <div>
+              <label for="eEmail">Email <span class="required">*</span></label>
+              <input type="email" id="eEmail" placeholder="john@example.com" maxlength="254" required />
+            </div>
+            <div>
+              <label for="ePhone">Phone</label>
+              <input type="tel" id="ePhone" placeholder="+1 555 000 0000" maxlength="50" />
+            </div>
+          </div>
+          <div class="form-row form-row--split">
+            <div>
+              <label for="eRole">Desired Role / Position</label>
+              <input type="text" id="eRole" placeholder="e.g. Blockchain Developer" maxlength="200" />
+            </div>
+            <div>
+              <label for="eAvailability">Availability</label>
+              <select id="eAvailability">
+                <option value="">Select…</option>
+                <option>Immediately</option>
+                <option>Within 2 weeks</option>
+                <option>Within 1 month</option>
+                <option>More than 1 month</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <label for="eSkills">Skills &amp; Experience</label>
+            <input type="text" id="eSkills" placeholder="e.g. Solidity, Python, Smart Contracts" maxlength="500" />
+          </div>
+          <div class="form-row">
+            <label for="ePortfolio">LinkedIn / Portfolio URL</label>
+            <input type="url" id="ePortfolio" placeholder="https://linkedin.com/in/…" maxlength="500" />
+          </div>
+          <div class="form-row">
+            <label for="eNotes">Additional Notes</label>
+            <textarea id="eNotes" rows="3" maxlength="1000" placeholder="Tell us more about your experience…"></textarea>
+          </div>
+          <div class="form-submit">
+            <button type="submit" class="btn btn--primary">Submit Application</button>
+          </div>
+        </form>
+        <div class="onboard-success hidden" id="employeeSuccess">
+          ✅ Thank you! Your employee application has been received. We'll review it and get back to you.
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Investor Form ── -->
+    <section class="onboard-panel hidden" id="panelInvestor" role="tabpanel" aria-labelledby="tabInvestor">
+      <div class="onboard-card">
+        <h3 class="onboard-card__title">Investor Onboarding</h3>
+        <p class="onboard-card__desc">Join our network of crypto investors and explore opportunities.</p>
+        <form id="investorForm" novalidate>
+          <div class="form-row">
+            <label for="iFullName">Full Name <span class="required">*</span></label>
+            <input type="text" id="iFullName" placeholder="Alex Johnson" maxlength="200" required />
+          </div>
+          <div class="form-row form-row--split">
+            <div>
+              <label for="iEmail">Email <span class="required">*</span></label>
+              <input type="email" id="iEmail" placeholder="alex@example.com" maxlength="254" required />
+            </div>
+            <div>
+              <label for="iPhone">Phone</label>
+              <input type="tel" id="iPhone" placeholder="+1 555 000 0000" maxlength="50" />
+            </div>
+          </div>
+          <div class="form-row form-row--split">
+            <div>
+              <label for="iInvestmentRange">Investment Range</label>
+              <select id="iInvestmentRange">
+                <option value="">Select…</option>
+                {% for r in investment_range_choices %}
+                <option value="{{ r }}">{{ r }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label for="iPreferredCrypto">Preferred Cryptocurrency</label>
+              <select id="iPreferredCrypto">
+                <option value="">Select…</option>
+                {% for c in crypto_choices %}
+                <option value="{{ c }}">{{ c }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="form-row form-row--split">
+            <div>
+              <label for="iInvestmentType">Investment Type</label>
+              <select id="iInvestmentType">
+                <option value="">Select…</option>
+                <option>Cryptocurrency</option>
+                <option>Equity / Tokens</option>
+                <option>DeFi / Yield</option>
+                <option>NFTs</option>
+                <option>Mixed Portfolio</option>
+              </select>
+            </div>
+            <div>
+              <label for="iExperienceLevel">Experience Level</label>
+              <select id="iExperienceLevel">
+                <option value="">Select…</option>
+                <option>Beginner</option>
+                <option>Intermediate</option>
+                <option>Advanced</option>
+                <option>Expert</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <label for="iWallet">Crypto Wallet Address</label>
+            <input type="text" id="iWallet" placeholder="0x… or bc1…" maxlength="200" />
+          </div>
+          <div class="form-row form-row--checkbox">
+            <input type="checkbox" id="iAccredited" />
+            <label for="iAccredited">I am an accredited investor</label>
+          </div>
+          <div class="form-row">
+            <label for="iNotes">Additional Notes</label>
+            <textarea id="iNotes" rows="3" maxlength="1000" placeholder="Describe your investment goals…"></textarea>
+          </div>
+          <div class="form-submit">
+            <button type="submit" class="btn btn--primary">Submit Application</button>
+          </div>
+        </form>
+        <div class="onboard-success hidden" id="investorSuccess">
+          ✅ Thank you! Your investor application has been received. Our team will reach out shortly.
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ── Toast ── -->
+  <div class="toast hidden" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+  (function () {
+    const toast = document.getElementById("toast");
+    let toastTimer;
+
+    function showToast(msg, type = "success") {
+      toast.textContent = msg;
+      toast.className = `toast toast--${type}`;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.add("hidden"), 4000);
+    }
+
+    async function apiFetch(url, options = {}) {
+      const res = await fetch(url, {
+        headers: { "Content-Type": "application/json" },
+        ...options,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ description: "Request failed" }));
+        throw new Error(err.description || `HTTP ${res.status}`);
+      }
+      return res.json();
+    }
+
+    // ── Tab switching ──
+    document.querySelectorAll(".onboard-tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".onboard-tab").forEach(t => t.classList.remove("active"));
+        document.querySelectorAll(".onboard-panel").forEach(p => {
+          p.classList.add("hidden");
+          p.classList.remove("active");
+        });
+        tab.classList.add("active");
+        const panel = document.getElementById("panel" + tab.dataset.tab.charAt(0).toUpperCase() + tab.dataset.tab.slice(1));
+        panel.classList.remove("hidden");
+        panel.classList.add("active");
+      });
+    });
+
+    // ── Customer form ──
+    document.getElementById("customerForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = e.target.querySelector("[type=submit]");
+      btn.disabled = true;
+      try {
+        await apiFetch("/api/onboard/customer", {
+          method: "POST",
+          body: JSON.stringify({
+            full_name: document.getElementById("cFullName").value.trim(),
+            email: document.getElementById("cEmail").value.trim(),
+            phone: document.getElementById("cPhone").value.trim(),
+            country: document.getElementById("cCountry").value.trim(),
+            preferred_crypto: document.getElementById("cPreferredCrypto").value,
+            wallet_address: document.getElementById("cWallet").value.trim(),
+            investment_interests: document.getElementById("cInterests").value.trim(),
+            notes: document.getElementById("cNotes").value.trim(),
+          }),
+        });
+        e.target.classList.add("hidden");
+        document.getElementById("customerSuccess").classList.remove("hidden");
+      } catch (err) {
+        showToast(err.message, "error");
+        btn.disabled = false;
+      }
+    });
+
+    // ── Employee form ──
+    document.getElementById("employeeForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = e.target.querySelector("[type=submit]");
+      btn.disabled = true;
+      try {
+        await apiFetch("/api/onboard/employee", {
+          method: "POST",
+          body: JSON.stringify({
+            full_name: document.getElementById("eFullName").value.trim(),
+            email: document.getElementById("eEmail").value.trim(),
+            phone: document.getElementById("ePhone").value.trim(),
+            role: document.getElementById("eRole").value.trim(),
+            availability: document.getElementById("eAvailability").value,
+            skills: document.getElementById("eSkills").value.trim(),
+            portfolio_url: document.getElementById("ePortfolio").value.trim(),
+            notes: document.getElementById("eNotes").value.trim(),
+          }),
+        });
+        e.target.classList.add("hidden");
+        document.getElementById("employeeSuccess").classList.remove("hidden");
+      } catch (err) {
+        showToast(err.message, "error");
+        btn.disabled = false;
+      }
+    });
+
+    // ── Investor form ──
+    document.getElementById("investorForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = e.target.querySelector("[type=submit]");
+      btn.disabled = true;
+      try {
+        await apiFetch("/api/onboard/investor", {
+          method: "POST",
+          body: JSON.stringify({
+            full_name: document.getElementById("iFullName").value.trim(),
+            email: document.getElementById("iEmail").value.trim(),
+            phone: document.getElementById("iPhone").value.trim(),
+            investment_range: document.getElementById("iInvestmentRange").value,
+            preferred_crypto: document.getElementById("iPreferredCrypto").value,
+            investment_type: document.getElementById("iInvestmentType").value,
+            experience_level: document.getElementById("iExperienceLevel").value,
+            wallet_address: document.getElementById("iWallet").value.trim(),
+            is_accredited: document.getElementById("iAccredited").checked,
+            notes: document.getElementById("iNotes").value.trim(),
+          }),
+        });
+        e.target.classList.add("hidden");
+        document.getElementById("investorSuccess").classList.remove("hidden");
+      } catch (err) {
+        showToast(err.message, "error");
+        btn.disabled = false;
+      }
+    });
+  })();
+  </script>
+</body>
+</html>

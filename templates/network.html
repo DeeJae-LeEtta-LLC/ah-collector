@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DeeJaeLeEtta Network – Admin Dashboard</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+  <!-- ── Header ── -->
+  <header class="header">
+    <div class="header__inner">
+      <div class="header__brand">
+        <span class="header__logo">🌐</span>
+        <h1 class="header__title">DeeJaeLeEtta Network</h1>
+      </div>
+      <nav class="header__nav">
+        <a class="btn btn--outline" href="/">AH Collector</a>
+        <a class="btn btn--primary" href="/onboard">+ New Onboarding</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ── Stats bar ── -->
+  <section class="stats-bar" id="statsBar">
+    <div class="stat-card">
+      <span class="stat-card__value" id="statCustomers">–</span>
+      <span class="stat-card__label">Customers</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-card__value" id="statEmployees">–</span>
+      <span class="stat-card__label">Employees</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-card__value" id="statInvestors">–</span>
+      <span class="stat-card__label">Investors</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-card__value" id="statTotal">–</span>
+      <span class="stat-card__label">Total Submissions</span>
+    </div>
+  </section>
+
+  <!-- ── Tab bar ── -->
+  <div class="onboard-tabs" role="tablist">
+    <button class="onboard-tab active" role="tab" data-tab="customers" id="tabCustomers">
+      👤 Customers
+    </button>
+    <button class="onboard-tab" role="tab" data-tab="employees" id="tabEmployees">
+      💼 Employees
+    </button>
+    <button class="onboard-tab" role="tab" data-tab="investors" id="tabInvestors">
+      📈 Investors
+    </button>
+  </div>
+
+  <!-- ── Tables ── -->
+  <main class="main">
+
+    <!-- Customers panel -->
+    <section id="panelCustomers" class="network-panel active">
+      <div class="network-table-wrap">
+        <table class="network-table" id="tableCustomers">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Phone</th>
+              <th>Country</th>
+              <th>Preferred Crypto</th>
+              <th>Wallet</th>
+              <th>Interests</th>
+              <th>Joined</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyCustomers">
+            <tr><td colspan="9" class="empty-state">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Employees panel -->
+    <section id="panelEmployees" class="network-panel hidden">
+      <div class="network-table-wrap">
+        <table class="network-table" id="tableEmployees">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Phone</th>
+              <th>Role</th>
+              <th>Skills</th>
+              <th>Availability</th>
+              <th>Portfolio</th>
+              <th>Joined</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyEmployees">
+            <tr><td colspan="9" class="empty-state">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Investors panel -->
+    <section id="panelInvestors" class="network-panel hidden">
+      <div class="network-table-wrap">
+        <table class="network-table" id="tableInvestors">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Phone</th>
+              <th>Investment Range</th>
+              <th>Type</th>
+              <th>Crypto</th>
+              <th>Experience</th>
+              <th>Accredited</th>
+              <th>Joined</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyInvestors">
+            <tr><td colspan="10" class="empty-state">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ── Toast ── -->
+  <div class="toast hidden" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+  (function () {
+    const toast = document.getElementById("toast");
+    let toastTimer;
+
+    function showToast(msg, type = "success") {
+      toast.textContent = msg;
+      toast.className = `toast toast--${type}`;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.add("hidden"), 4000);
+    }
+
+    async function apiFetch(url) {
+      const res = await fetch(url, { headers: { "Content-Type": "application/json" } });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ description: "Request failed" }));
+        throw new Error(err.description || `HTTP ${res.status}`);
+      }
+      return res.json();
+    }
+
+    function esc(str) {
+      if (!str) return "–";
+      const d = document.createElement("div");
+      d.textContent = str;
+      return d.innerHTML;
+    }
+
+    function fmtDate(iso) {
+      if (!iso) return "–";
+      return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+    }
+
+    // ── Load stats ──
+    async function loadStats() {
+      try {
+        const s = await apiFetch("/api/network/stats");
+        document.getElementById("statCustomers").textContent = s.total_customers;
+        document.getElementById("statEmployees").textContent = s.total_employees;
+        document.getElementById("statInvestors").textContent = s.total_investors;
+        document.getElementById("statTotal").textContent =
+          s.total_customers + s.total_employees + s.total_investors;
+      } catch (e) {
+        showToast("Failed to load stats: " + e.message, "error");
+      }
+    }
+
+    // ── Load customers ──
+    async function loadCustomers() {
+      try {
+        const data = await apiFetch("/api/network/customers");
+        const tbody = document.getElementById("tbodyCustomers");
+        if (!data.length) {
+          tbody.innerHTML = '<tr><td colspan="9" class="empty-state">No customers onboarded yet.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = data.map((c, i) => `
+          <tr>
+            <td>${i + 1}</td>
+            <td>${esc(c.full_name)}</td>
+            <td><a href="mailto:${c.email}" class="link">${esc(c.email)}</a></td>
+            <td>${esc(c.phone)}</td>
+            <td>${esc(c.country)}</td>
+            <td>${esc(c.preferred_crypto)}</td>
+            <td class="wallet-cell" title="${c.wallet_address || ''}">${esc(c.wallet_address)}</td>
+            <td>${esc(c.investment_interests)}</td>
+            <td>${fmtDate(c.created_at)}</td>
+          </tr>`).join("");
+      } catch (e) {
+        showToast("Failed to load customers: " + e.message, "error");
+      }
+    }
+
+    // ── Load employees ──
+    async function loadEmployees() {
+      try {
+        const data = await apiFetch("/api/network/employees");
+        const tbody = document.getElementById("tbodyEmployees");
+        if (!data.length) {
+          tbody.innerHTML = '<tr><td colspan="9" class="empty-state">No employees onboarded yet.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = data.map((e, i) => `
+          <tr>
+            <td>${i + 1}</td>
+            <td>${esc(e.full_name)}</td>
+            <td><a href="mailto:${e.email}" class="link">${esc(e.email)}</a></td>
+            <td>${esc(e.phone)}</td>
+            <td>${esc(e.role)}</td>
+            <td>${esc(e.skills)}</td>
+            <td>${esc(e.availability)}</td>
+            <td>${e.portfolio_url
+              ? `<a href="${encodeURI(e.portfolio_url)}" target="_blank" rel="noopener" class="link">View</a>`
+              : "–"}</td>
+            <td>${fmtDate(e.created_at)}</td>
+          </tr>`).join("");
+      } catch (e2) {
+        showToast("Failed to load employees: " + e2.message, "error");
+      }
+    }
+
+    // ── Load investors ──
+    async function loadInvestors() {
+      try {
+        const data = await apiFetch("/api/network/investors");
+        const tbody = document.getElementById("tbodyInvestors");
+        if (!data.length) {
+          tbody.innerHTML = '<tr><td colspan="10" class="empty-state">No investors onboarded yet.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = data.map((inv, i) => `
+          <tr>
+            <td>${i + 1}</td>
+            <td>${esc(inv.full_name)}</td>
+            <td><a href="mailto:${inv.email}" class="link">${esc(inv.email)}</a></td>
+            <td>${esc(inv.phone)}</td>
+            <td>${esc(inv.investment_range)}</td>
+            <td>${esc(inv.investment_type)}</td>
+            <td>${esc(inv.preferred_crypto)}</td>
+            <td>${esc(inv.experience_level)}</td>
+            <td>${inv.is_accredited ? '<span class="badge badge--yes">Yes</span>' : '<span class="badge badge--no">No</span>'}</td>
+            <td>${fmtDate(inv.created_at)}</td>
+          </tr>`).join("");
+      } catch (e) {
+        showToast("Failed to load investors: " + e.message, "error");
+      }
+    }
+
+    // ── Tab switching ──
+    document.querySelectorAll(".onboard-tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".onboard-tab").forEach(t => t.classList.remove("active"));
+        document.querySelectorAll(".network-panel").forEach(p => {
+          p.classList.add("hidden");
+          p.classList.remove("active");
+        });
+        tab.classList.add("active");
+        const name = tab.dataset.tab;
+        const panel = document.getElementById("panel" + name.charAt(0).toUpperCase() + name.slice(1));
+        panel.classList.remove("hidden");
+        panel.classList.add("active");
+      });
+    });
+
+    // ── Init ──
+    loadStats();
+    loadCustomers();
+    loadEmployees();
+    loadInvestors();
+  })();
+  </script>
+</body>
+</html>
