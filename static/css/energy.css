@@ -1,0 +1,282 @@
+/* ── Energy Dashboard Styles ─────────────────────────────────────────────── */
+
+/* Additional accent colours for the energy theme */
+:root {
+  --color-solar:   #ffb830;
+  --color-bess:    #00c8ff;
+  --color-mining:  #7c5cfc;
+  --color-cooling: #00e5b4;
+  --color-ok:      #00e5b4;
+  --color-warn:    #ffb830;
+  --color-crit:    #ff5577;
+}
+
+/* ── Layout ─────────────────────────────────────────────────────────────── */
+.energy-main {
+  max-width: 1400px;
+  margin: 1.5rem auto 3rem;
+  padding: 0 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+}
+
+.energy-section {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+  min-height: 200px;
+}
+
+.energy-section--full {
+  grid-column: 1 / -1;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: .6rem;
+  margin-bottom: .1rem;
+}
+
+.section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.section-subtitle {
+  font-size: .8rem;
+  color: var(--color-text-muted);
+}
+
+/* ── Device cards ────────────────────────────────────────────────────────── */
+.device-list {
+  display: flex;
+  flex-direction: column;
+  gap: .65rem;
+  overflow-y: auto;
+  max-height: 400px;
+}
+
+.device-card {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: .85rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+  transition: border-color var(--transition);
+}
+
+.device-card:hover {
+  border-color: var(--color-primary);
+}
+
+.device-card--inactive {
+  opacity: .55;
+}
+
+.device-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+}
+
+.device-card__name {
+  font-weight: 600;
+  font-size: .95rem;
+  word-break: break-word;
+}
+
+.device-card__actions {
+  display: flex;
+  gap: .35rem;
+  flex-shrink: 0;
+}
+
+.device-card__metrics {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: .2rem .8rem;
+  font-size: .8rem;
+}
+
+.metric {
+  display: flex;
+  justify-content: space-between;
+  gap: .25rem;
+}
+
+.metric__label { color: var(--color-text-muted); }
+.metric__value { font-weight: 600; }
+
+/* ── Status pills ────────────────────────────────────────────────────────── */
+.pill {
+  display: inline-block;
+  padding: .15rem .55rem;
+  border-radius: 999px;
+  font-size: .7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.pill--ok       { background: rgba(0,229,180,.15); color: var(--color-ok); }
+.pill--warning  { background: rgba(255,184,48,.15); color: var(--color-warn); }
+.pill--critical { background: rgba(255,85,119,.18); color: var(--color-crit); }
+.pill--active   { background: rgba(0,200,255,.12); color: var(--color-bess); }
+.pill--inactive { background: rgba(136,145,176,.12); color: var(--color-text-muted); }
+.pill--charging    { background: rgba(0,200,255,.12); color: var(--color-bess); }
+.pill--discharging { background: rgba(255,184,48,.15); color: var(--color-warn); }
+.pill--idle        { background: rgba(136,145,176,.12); color: var(--color-text-muted); }
+
+/* ── Progress bar (SOC / utilisation) ───────────────────────────────────── */
+.progress-wrap {
+  background: var(--color-surface);
+  border-radius: 999px;
+  height: 6px;
+  overflow: hidden;
+  margin-top: .15rem;
+}
+
+.progress-bar {
+  height: 100%;
+  border-radius: 999px;
+  transition: width .4s ease;
+}
+
+.progress-bar--solar   { background: var(--color-solar); }
+.progress-bar--bess    { background: var(--color-bess); }
+.progress-bar--mining  { background: var(--color-mining); }
+.progress-bar--cooling { background: var(--color-cooling); }
+
+/* ── Alerts banner ───────────────────────────────────────────────────────── */
+.alerts-banner {
+  max-width: 1400px;
+  margin: .5rem auto 0;
+  padding: 0 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+}
+
+.alert-item {
+  padding: .6rem 1rem;
+  border-radius: var(--radius-sm);
+  font-size: .88rem;
+  font-weight: 500;
+}
+
+.alert-item--critical {
+  background: rgba(255,85,119,.12);
+  border: 1px solid rgba(255,85,119,.3);
+  color: var(--color-crit);
+}
+
+.alert-item--warning {
+  background: rgba(255,184,48,.1);
+  border: 1px solid rgba(255,184,48,.25);
+  color: var(--color-warn);
+}
+
+.alerts-banner.hidden { display: none; }
+
+/* ── AI Recommendations ──────────────────────────────────────────────────── */
+.rec-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .88rem;
+}
+
+.rec-table th {
+  text-align: left;
+  padding: .5rem .75rem;
+  color: var(--color-text-muted);
+  font-size: .75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.rec-table td {
+  padding: .55rem .75rem;
+  border-bottom: 1px solid var(--color-surface-2);
+  vertical-align: middle;
+}
+
+.rec-table tr:last-child td { border-bottom: none; }
+
+.rec-table tr:hover td { background: var(--color-surface-2); }
+
+.confidence-bar-wrap {
+  background: var(--color-surface);
+  border-radius: 999px;
+  height: 5px;
+  width: 60px;
+  overflow: hidden;
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: .4rem;
+}
+
+.confidence-bar {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--color-accent);
+}
+
+/* ── Action log ──────────────────────────────────────────────────────────── */
+.log-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .84rem;
+}
+
+.log-table th {
+  text-align: left;
+  padding: .45rem .7rem;
+  color: var(--color-text-muted);
+  font-size: .73rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.log-table td {
+  padding: .5rem .7rem;
+  border-bottom: 1px solid var(--color-surface-2);
+}
+
+.log-table tr:last-child td { border-bottom: none; }
+
+.log-executed    { color: var(--color-accent); font-weight: 600; }
+.log-unexecuted  { color: var(--color-text-muted); }
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .energy-main {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .energy-main {
+    grid-template-columns: 1fr;
+  }
+  .energy-section--full {
+    grid-column: 1;
+  }
+}
