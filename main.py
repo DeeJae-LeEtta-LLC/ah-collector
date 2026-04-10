@@ -1,9 +1,12 @@
 """
 AH Collector - Auction House Collector Application
 Flask backend providing REST API and serving the frontend.
+Includes the DeeJaeLeEtta Network: cryptocurrency funnels for onboarding
+customers, employees, and investors.
 """
 
 import os
+import re
 import json
 from datetime import datetime, timezone
 
@@ -91,6 +94,118 @@ class PriceHistory(db.Model):
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# DeeJaeLeEtta Network Models
+# ──────────────────────────────────────────────────────────────────────────────
+
+CRYPTO_CHOICES = [
+    "Bitcoin (BTC)", "Ethereum (ETH)", "Solana (SOL)", "Binance Coin (BNB)",
+    "Cardano (ADA)", "Polygon (MATIC)", "Avalanche (AVAX)", "Other",
+]
+
+INVESTMENT_RANGE_CHOICES = [
+    "Under $1,000", "$1,000 – $9,999", "$10,000 – $49,999",
+    "$50,000 – $249,999", "$250,000+",
+]
+
+
+class NetworkCustomer(db.Model):
+    """Onboarded customer collected via the DeeJaeLeEtta Network funnel."""
+
+    __tablename__ = "network_customers"
+
+    id = db.Column(db.Integer, primary_key=True)
+    full_name = db.Column(db.String(200), nullable=False)
+    email = db.Column(db.String(254), nullable=False)
+    phone = db.Column(db.String(50), nullable=True)
+    wallet_address = db.Column(db.String(200), nullable=True)
+    preferred_crypto = db.Column(db.String(100), nullable=True)
+    investment_interests = db.Column(db.String(500), nullable=True)
+    country = db.Column(db.String(100), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "full_name": self.full_name,
+            "email": self.email,
+            "phone": self.phone,
+            "wallet_address": self.wallet_address,
+            "preferred_crypto": self.preferred_crypto,
+            "investment_interests": self.investment_interests,
+            "country": self.country,
+            "notes": self.notes,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class NetworkEmployee(db.Model):
+    """Onboarded employee collected via the DeeJaeLeEtta Network funnel."""
+
+    __tablename__ = "network_employees"
+
+    id = db.Column(db.Integer, primary_key=True)
+    full_name = db.Column(db.String(200), nullable=False)
+    email = db.Column(db.String(254), nullable=False)
+    phone = db.Column(db.String(50), nullable=True)
+    role = db.Column(db.String(200), nullable=True)
+    skills = db.Column(db.String(500), nullable=True)
+    portfolio_url = db.Column(db.String(500), nullable=True)
+    availability = db.Column(db.String(100), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "full_name": self.full_name,
+            "email": self.email,
+            "phone": self.phone,
+            "role": self.role,
+            "skills": self.skills,
+            "portfolio_url": self.portfolio_url,
+            "availability": self.availability,
+            "notes": self.notes,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class NetworkInvestor(db.Model):
+    """Onboarded investor collected via the DeeJaeLeEtta Network funnel."""
+
+    __tablename__ = "network_investors"
+
+    id = db.Column(db.Integer, primary_key=True)
+    full_name = db.Column(db.String(200), nullable=False)
+    email = db.Column(db.String(254), nullable=False)
+    phone = db.Column(db.String(50), nullable=True)
+    wallet_address = db.Column(db.String(200), nullable=True)
+    investment_range = db.Column(db.String(100), nullable=True)
+    investment_type = db.Column(db.String(200), nullable=True)
+    experience_level = db.Column(db.String(100), nullable=True)
+    is_accredited = db.Column(db.Boolean, default=False)
+    preferred_crypto = db.Column(db.String(100), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "full_name": self.full_name,
+            "email": self.email,
+            "phone": self.phone,
+            "wallet_address": self.wallet_address,
+            "investment_range": self.investment_range,
+            "investment_type": self.investment_type,
+            "experience_level": self.experience_level,
+            "is_accredited": self.is_accredited,
+            "preferred_crypto": self.preferred_crypto,
+            "notes": self.notes,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Frontend routes
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -98,6 +213,19 @@ class PriceHistory(db.Model):
 def index():
     """Serve the main dashboard."""
     return render_template("index.html")
+
+
+@app.route("/network")
+def network():
+    """Serve the DeeJaeLeEtta Network admin dashboard."""
+    return render_template("network.html")
+
+
+@app.route("/onboard")
+def onboard():
+    """Serve the public-facing onboarding funnel (defaults to customer tab)."""
+    return render_template("onboard.html", crypto_choices=CRYPTO_CHOICES,
+                           investment_range_choices=INVESTMENT_RANGE_CHOICES)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -262,6 +390,140 @@ def get_stats():
             "categories": category_data,
         }
     )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# DeeJaeLeEtta Network API routes
+# ──────────────────────────────────────────────────────────────────────────────
+
+_EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$")
+
+
+def _validate_email(email: str) -> bool:
+    return bool(_EMAIL_RE.match(email))
+
+
+@app.route("/api/network/stats", methods=["GET"])
+def network_stats():
+    """Return summary statistics for the DeeJaeLeEtta Network."""
+    return jsonify({
+        "total_customers": NetworkCustomer.query.count(),
+        "total_employees": NetworkEmployee.query.count(),
+        "total_investors": NetworkInvestor.query.count(),
+    })
+
+
+@app.route("/api/network/customers", methods=["GET"])
+def list_network_customers():
+    """List all onboarded customers."""
+    customers = NetworkCustomer.query.order_by(desc(NetworkCustomer.created_at)).all()
+    return jsonify([c.to_dict() for c in customers])
+
+
+@app.route("/api/network/employees", methods=["GET"])
+def list_network_employees():
+    """List all onboarded employees."""
+    employees = NetworkEmployee.query.order_by(desc(NetworkEmployee.created_at)).all()
+    return jsonify([e.to_dict() for e in employees])
+
+
+@app.route("/api/network/investors", methods=["GET"])
+def list_network_investors():
+    """List all onboarded investors."""
+    investors = NetworkInvestor.query.order_by(desc(NetworkInvestor.created_at)).all()
+    return jsonify([i.to_dict() for i in investors])
+
+
+@app.route("/api/onboard/customer", methods=["POST"])
+def onboard_customer():
+    """Submit a customer onboarding form."""
+    payload = request.get_json(silent=True)
+    if not payload:
+        abort(400, description="Request body must be JSON.")
+
+    full_name = payload.get("full_name", "").strip()
+    if not full_name:
+        abort(400, description="'full_name' is required.")
+
+    email = payload.get("email", "").strip().lower()
+    if not email or not _validate_email(email):
+        abort(400, description="A valid 'email' is required.")
+
+    customer = NetworkCustomer(
+        full_name=full_name,
+        email=email,
+        phone=payload.get("phone", "").strip() or None,
+        wallet_address=payload.get("wallet_address", "").strip() or None,
+        preferred_crypto=payload.get("preferred_crypto", "").strip() or None,
+        investment_interests=payload.get("investment_interests", "").strip() or None,
+        country=payload.get("country", "").strip() or None,
+        notes=payload.get("notes", "").strip() or None,
+    )
+    db.session.add(customer)
+    db.session.commit()
+    return jsonify(customer.to_dict()), 201
+
+
+@app.route("/api/onboard/employee", methods=["POST"])
+def onboard_employee():
+    """Submit an employee onboarding form."""
+    payload = request.get_json(silent=True)
+    if not payload:
+        abort(400, description="Request body must be JSON.")
+
+    full_name = payload.get("full_name", "").strip()
+    if not full_name:
+        abort(400, description="'full_name' is required.")
+
+    email = payload.get("email", "").strip().lower()
+    if not email or not _validate_email(email):
+        abort(400, description="A valid 'email' is required.")
+
+    employee = NetworkEmployee(
+        full_name=full_name,
+        email=email,
+        phone=payload.get("phone", "").strip() or None,
+        role=payload.get("role", "").strip() or None,
+        skills=payload.get("skills", "").strip() or None,
+        portfolio_url=payload.get("portfolio_url", "").strip() or None,
+        availability=payload.get("availability", "").strip() or None,
+        notes=payload.get("notes", "").strip() or None,
+    )
+    db.session.add(employee)
+    db.session.commit()
+    return jsonify(employee.to_dict()), 201
+
+
+@app.route("/api/onboard/investor", methods=["POST"])
+def onboard_investor():
+    """Submit an investor onboarding form."""
+    payload = request.get_json(silent=True)
+    if not payload:
+        abort(400, description="Request body must be JSON.")
+
+    full_name = payload.get("full_name", "").strip()
+    if not full_name:
+        abort(400, description="'full_name' is required.")
+
+    email = payload.get("email", "").strip().lower()
+    if not email or not _validate_email(email):
+        abort(400, description="A valid 'email' is required.")
+
+    investor = NetworkInvestor(
+        full_name=full_name,
+        email=email,
+        phone=payload.get("phone", "").strip() or None,
+        wallet_address=payload.get("wallet_address", "").strip() or None,
+        investment_range=payload.get("investment_range", "").strip() or None,
+        investment_type=payload.get("investment_type", "").strip() or None,
+        experience_level=payload.get("experience_level", "").strip() or None,
+        is_accredited=bool(payload.get("is_accredited", False)),
+        preferred_crypto=payload.get("preferred_crypto", "").strip() or None,
+        notes=payload.get("notes", "").strip() or None,
+    )
+    db.session.add(investor)
+    db.session.commit()
+    return jsonify(investor.to_dict()), 201
 
 
 # ──────────────────────────────────────────────────────────────────────────────
