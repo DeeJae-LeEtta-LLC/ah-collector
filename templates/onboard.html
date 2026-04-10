@@ -225,11 +225,13 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
-        const data = await res.json();
 
         if (!res.ok) {
-          throw new Error(data.description || `Error ${res.status}`);
+          const errData = await res.json().catch(() => null);
+          throw new Error((errData && errData.description) || `Error ${res.status}`);
         }
+
+        const data = await res.json();
 
         // Store flag so the main dashboard won't redirect back here
         localStorage.setItem("ah_onboarded", "1");
