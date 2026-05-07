@@ -11,6 +11,8 @@ from flask import Flask, jsonify, render_template, request, abort
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import desc, func
 
+from blockchain import get_blockchain
+
 app = Flask(__name__)
 
 # Database configuration
@@ -90,6 +92,20 @@ class PriceHistory(db.Model):
         }
 
 
+class BlockRecord(db.Model):
+    """Persists each mined D33J block so the chain survives restarts."""
+
+    __tablename__ = "blockchain_blocks"
+
+    id = db.Column(db.Integer, primary_key=True)
+    block_index = db.Column(db.Integer, nullable=False, unique=True)
+    block_data = db.Column(db.Text, nullable=False)   # JSON blob
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def to_block_dict(self):
+        return json.loads(self.block_data)
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Frontend routes
 # ──────────────────────────────────────────────────────────────────────────────
@@ -98,6 +114,12 @@ class PriceHistory(db.Model):
 def index():
     """Serve the main dashboard."""
     return render_template("index.html")
+
+
+@app.route("/blockchain")
+def blockchain_page():
+    """Serve the D33J testnet blockchain dashboard."""
+    return render_template("blockchain.html")
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -265,11 +287,135 @@ def get_stats():
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Blockchain API routes  (/api/blockchain/*)
+# ──────────────────────────────────────────────────────────────────────────────
+
+@app.route("/api/blockchain/info", methods=["GET"])
+def blockchain_info():
+    """Return D33J testnet network metadata."""
+    return jsonify(get_blockchain().get_info())
+
+
+@app.route("/api/blockchain/chain", methods=["GET"])
+def blockchain_chain():
+    """Return the full chain (newest block first)."""
+    chain = [b.to_dict() for b in reversed(get_blockchain().chain)]
+    return jsonify(chain)
+
+
+@app.route("/api/blockchain/pending", methods=["GET"])
+def blockchain_pending():
+    """Return currently pending (unconfirmed) transactions."""
+    return jsonify(get_blockchain().pending_transactions)
+
+
+@app.route("/api/blockchain/balance/<path:address>", methods=["GET"])
+def blockchain_balance(address):
+    """Return the D33J balance of *address*."""
+    balance = get_blockchain().get_balance(address)
+    return jsonify({"address": address, "balance": balance, "symbol": "D33J"})
+
+
+@app.route("/api/blockchain/transactions/new", methods=["POST"])
+def blockchain_new_transaction():
+    """Queue a new D33J transfer transaction."""
+    payload = request.get_json(silent=True)
+    if not payload:
+        abort(400, description="Request body must be JSON.")
+
+    sender = (payload.get("sender") or "").strip()
+    recipient = (payload.get("recipient") or "").strip()
+    amount = payload.get("amount")
+
+    if not sender or not recipient:
+        abort(400, description="'sender' and 'recipient' are required.")
+    if amount is None:
+        abort(400, description="'amount' is required.")
+
+    try:
+        block_index = get_blockchain().add_transaction(sender, recipient, float(amount))
+    except ValueError as exc:
+        abort(400, description=str(exc))
+
+    return jsonify(
+        {
+            "message": f"Transaction queued for block {block_index}.",
+            "block_index": block_index,
+        }
+    ), 201
+
+
+@app.route("/api/blockchain/faucet", methods=["POST"])
+def blockchain_faucet():
+    """Send FAUCET_DRIP D33J to the requested address (testnet faucet)."""
+    payload = request.get_json(silent=True)
+    if not payload:
+        abort(400, description="Request body must be JSON.")
+
+    address = (payload.get("address") or "").strip()
+    if not address:
+        abort(400, description="'address' is required.")
+
+    try:
+        block_index = get_blockchain().request_faucet(address)
+    except ValueError as exc:
+        abort(400, description=str(exc))
+
+    return jsonify(
+        {
+            "message": f"Faucet drip queued for block {block_index}.",
+            "address": address,
+            "amount": 100.0,
+            "symbol": "D33J",
+        }
+    ), 201
+
+
+@app.route("/api/blockchain/mine", methods=["POST"])
+def blockchain_mine():
+    """Mine pending transactions into a new block."""
+    payload = request.get_json(silent=True) or {}
+    miner = (payload.get("miner_address") or "").strip()
+    if not miner:
+        abort(400, description="'miner_address' is required.")
+
+    try:
+        new_block = get_blockchain().mine_pending_transactions(miner)
+    except ValueError as exc:
+        abort(400, description=str(exc))
+
+    # Persist the newly mined block
+    record = BlockRecord(
+        block_index=new_block.index,
+        block_data=json.dumps(new_block.to_dict()),
+    )
+    db.session.merge(record)
+    db.session.commit()
+
+    return jsonify(
+        {
+            "message": "Block mined successfully.",
+            "block": new_block.to_dict(),
+        }
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Init
 # ──────────────────────────────────────────────────────────────────────────────
 
 with app.app_context():
     db.create_all()
+
+    # Restore the D33J blockchain from persisted blocks (if any)
+    saved = (
+        BlockRecord.query.order_by(BlockRecord.block_index).all()
+    )
+    bc = get_blockchain()
+    if saved:
+        bc.bootstrap([r.to_block_dict() for r in saved])
+    else:
+        bc.bootstrap()
 
 
 if __name__ == "__main__":

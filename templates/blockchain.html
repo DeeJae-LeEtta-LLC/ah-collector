@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>D33J Testnet – deejaeleetta network</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+  <style>
+    /* ── Blockchain-specific overrides ── */
+    .bc-header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); }
+    .bc-header .header__title { color: #e94560; }
+    .bc-header .header__logo  { font-size: 1.6rem; }
+
+    .bc-badge {
+      display: inline-block;
+      padding: .15rem .55rem;
+      border-radius: 999px;
+      font-size: .7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      background: #e94560;
+      color: #fff;
+      margin-left: .4rem;
+      vertical-align: middle;
+    }
+
+    .bc-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1rem;
+      padding: 1.5rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .bc-card {
+      background: var(--surface, #fff);
+      border: 1px solid var(--border, #e2e8f0);
+      border-radius: .75rem;
+      padding: 1.25rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+    .bc-card h3 {
+      margin: 0 0 .75rem;
+      font-size: .85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      color: var(--muted, #718096);
+    }
+    .bc-card__value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--text, #1a202c);
+    }
+    .bc-card__sub {
+      font-size: .8rem;
+      color: var(--muted, #718096);
+      margin-top: .2rem;
+    }
+
+    .bc-valid   { color: #38a169; }
+    .bc-invalid { color: #e53e3e; }
+
+    /* ── Forms ── */
+    .bc-form { display: flex; flex-direction: column; gap: .6rem; }
+    .bc-form input {
+      padding: .45rem .7rem;
+      border: 1px solid var(--border, #e2e8f0);
+      border-radius: .4rem;
+      font-size: .9rem;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .bc-form .btn { width: 100%; }
+
+    /* ── Block list ── */
+    .bc-section {
+      max-width: 1200px;
+      margin: 0 auto 2rem;
+      padding: 0 1.5rem;
+    }
+    .bc-section h2 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin: 0 0 .75rem;
+      color: var(--text, #1a202c);
+    }
+
+    .bc-block {
+      background: var(--surface, #fff);
+      border: 1px solid var(--border, #e2e8f0);
+      border-radius: .75rem;
+      padding: 1rem 1.25rem;
+      margin-bottom: .6rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,.05);
+    }
+    .bc-block__header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+    .bc-block__index {
+      font-weight: 700;
+      font-size: 1rem;
+    }
+    .bc-block__meta {
+      font-size: .75rem;
+      color: var(--muted, #718096);
+    }
+    .bc-block__hash {
+      font-family: monospace;
+      font-size: .72rem;
+      color: var(--muted, #718096);
+      word-break: break-all;
+      margin-top: .3rem;
+    }
+    .bc-block__txs {
+      margin-top: .75rem;
+      border-top: 1px solid var(--border, #e2e8f0);
+      padding-top: .6rem;
+      display: none;
+    }
+    .bc-block__txs.open { display: block; }
+    .bc-tx {
+      font-size: .8rem;
+      display: flex;
+      justify-content: space-between;
+      padding: .25rem 0;
+      border-bottom: 1px dashed var(--border, #e2e8f0);
+    }
+    .bc-tx:last-child { border-bottom: none; }
+    .bc-tx__amount { font-weight: 700; color: #38a169; }
+    .bc-tx__type   { color: var(--muted, #718096); font-style: italic; }
+
+    .bc-empty {
+      text-align: center;
+      padding: 2rem;
+      color: var(--muted, #718096);
+      font-size: .9rem;
+    }
+
+    .spinner { display: inline-block; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <!-- ── Header ── -->
+  <header class="header bc-header">
+    <div class="header__inner">
+      <div class="header__brand">
+        <span class="header__logo">⛓</span>
+        <h1 class="header__title">D33J Coin <span class="bc-badge">testnet</span></h1>
+      </div>
+      <nav class="header__nav">
+        <a href="/" class="btn btn--outline">← AH Collector</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ── Network stats ── -->
+  <section class="stats-bar" id="statsBar">
+    <div class="stat-card">
+      <span class="stat-card__value" id="statBlocks">–</span>
+      <span class="stat-card__label">Blocks</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-card__value" id="statPending">–</span>
+      <span class="stat-card__label">Pending TXs</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-card__value" id="statDifficulty">–</span>
+      <span class="stat-card__label">Difficulty</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-card__value" id="statReward">–</span>
+      <span class="stat-card__label">Mining Reward (D33J)</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-card__value" id="statValid">–</span>
+      <span class="stat-card__label">Chain Valid</span>
+    </div>
+  </section>
+
+  <!-- ── Action cards ── -->
+  <div class="bc-grid">
+
+    <!-- Faucet -->
+    <div class="bc-card">
+      <h3>🚰 Testnet Faucet</h3>
+      <p class="bc-card__sub" id="faucetBalance">Faucet balance: –</p>
+      <div class="bc-form" id="faucetForm">
+        <input type="text" id="faucetAddress" placeholder="Your wallet address" />
+        <button class="btn btn--primary" id="btnFaucet">Request 100 D33J</button>
+      </div>
+      <p id="faucetMsg" style="font-size:.8rem;margin-top:.5rem;"></p>
+    </div>
+
+    <!-- Send Transaction -->
+    <div class="bc-card">
+      <h3>💸 Send D33J</h3>
+      <div class="bc-form" id="txForm">
+        <input type="text" id="txSender"    placeholder="Sender address" />
+        <input type="text" id="txRecipient" placeholder="Recipient address" />
+        <input type="number" id="txAmount"  placeholder="Amount (D33J)" step="0.0001" min="0.0001" />
+        <button class="btn btn--primary" id="btnSendTx">Queue Transaction</button>
+      </div>
+      <p id="txMsg" style="font-size:.8rem;margin-top:.5rem;"></p>
+    </div>
+
+    <!-- Mine block -->
+    <div class="bc-card">
+      <h3>⛏️ Mine Block</h3>
+      <p class="bc-card__sub">Bundle pending transactions into a new block.</p>
+      <div class="bc-form" id="mineForm">
+        <input type="text" id="minerAddress" placeholder="Miner wallet address" />
+        <button class="btn btn--primary" id="btnMine">Mine Block</button>
+      </div>
+      <p id="mineMsg" style="font-size:.8rem;margin-top:.5rem;"></p>
+    </div>
+
+    <!-- Balance checker -->
+    <div class="bc-card">
+      <h3>💰 Check Balance</h3>
+      <div class="bc-form">
+        <input type="text" id="balanceAddress" placeholder="Wallet address" />
+        <button class="btn btn--outline" id="btnBalance">Check</button>
+      </div>
+      <p id="balanceResult" style="font-size:.95rem;font-weight:700;margin-top:.6rem;"></p>
+    </div>
+
+  </div>
+
+  <!-- ── Pending transactions ── -->
+  <section class="bc-section">
+    <h2>⏳ Pending Transactions</h2>
+    <div id="pendingList"><div class="bc-empty">Loading…</div></div>
+  </section>
+
+  <!-- ── Block explorer ── -->
+  <section class="bc-section">
+    <h2>📦 Block Explorer</h2>
+    <div id="blockList"><div class="bc-empty">Loading…</div></div>
+  </section>
+
+  <!-- ── Toast ── -->
+  <div class="toast hidden" id="toast"></div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    const toast = document.getElementById("toast");
+    let toastTimer;
+
+    function showToast(msg, type = "success") {
+      toast.textContent = msg;
+      toast.className = `toast toast--${type}`;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.add("hidden"), 4000);
+    }
+
+    async function apiFetch(url, options = {}) {
+      const res = await fetch(url, {
+        headers: { "Content-Type": "application/json" },
+        ...options,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ description: "Request failed" }));
+        throw new Error(err.description || `HTTP ${res.status}`);
+      }
+      return res.json();
+    }
+
+    // ── Stats bar ──────────────────────────────────────────────────────────
+    async function loadInfo() {
+      try {
+        const info = await apiFetch("/api/blockchain/info");
+        document.getElementById("statBlocks").textContent     = info.chain_length;
+        document.getElementById("statPending").textContent    = info.pending_transactions;
+        document.getElementById("statDifficulty").textContent = info.difficulty;
+        document.getElementById("statReward").textContent     = info.mining_reward;
+
+        const validEl = document.getElementById("statValid");
+        validEl.textContent = info.is_valid ? "✔ Yes" : "✘ No";
+        validEl.className   = "stat-card__value " + (info.is_valid ? "bc-valid" : "bc-invalid");
+
+        document.getElementById("faucetBalance").textContent =
+          `Faucet balance: ${info.faucet_balance.toLocaleString(undefined, {maximumFractionDigits: 4})} D33J`;
+      } catch (e) {
+        showToast("Failed to load chain info: " + e.message, "error");
+      }
+    }
+
+    // ── Pending transactions ───────────────────────────────────────────────
+    async function loadPending() {
+      try {
+        const txs = await apiFetch("/api/blockchain/pending");
+        const el  = document.getElementById("pendingList");
+        if (!txs.length) {
+          el.innerHTML = '<div class="bc-empty">No pending transactions.</div>';
+          return;
+        }
+        el.innerHTML = txs.map(tx => renderTx(tx)).join("");
+      } catch (e) {
+        showToast("Failed to load pending txs: " + e.message, "error");
+      }
+    }
+
+    function renderTx(tx) {
+      const ts = tx.timestamp ? new Date(tx.timestamp * 1000).toLocaleString() : "–";
+      return `<div class="bc-tx">
+        <span>
+          <strong>${tx.sender.substring(0, 16)}…</strong>
+          → <strong>${tx.recipient.substring(0, 16)}…</strong>
+          <span class="bc-tx__type">(${tx.type})</span>
+        </span>
+        <span class="bc-tx__amount">${tx.amount.toLocaleString(undefined,{maximumFractionDigits:4})} D33J</span>
+      </div>`;
+    }
+
+    // ── Block explorer ─────────────────────────────────────────────────────
+    async function loadChain() {
+      try {
+        const chain = await apiFetch("/api/blockchain/chain");
+        const el    = document.getElementById("blockList");
+        if (!chain.length) {
+          el.innerHTML = '<div class="bc-empty">Chain is empty.</div>';
+          return;
+        }
+        el.innerHTML = chain.map(renderBlock).join("");
+        el.querySelectorAll(".bc-block__header").forEach(h => {
+          h.addEventListener("click", () => {
+            h.nextElementSibling.classList.toggle("open");
+          });
+        });
+      } catch (e) {
+        showToast("Failed to load chain: " + e.message, "error");
+      }
+    }
+
+    function renderBlock(b) {
+      const ts  = new Date(b.timestamp * 1000).toLocaleString();
+      const txs = (b.transactions || []).map(renderTx).join("");
+      return `<div class="bc-block">
+        <div class="bc-block__header">
+          <span class="bc-block__index">Block #${b.index}</span>
+          <span class="bc-block__meta">${ts} · ${b.transactions.length} tx(s) · nonce: ${b.nonce}</span>
+        </div>
+        <div class="bc-block__hash">Hash: ${b.hash}</div>
+        <div class="bc-block__txs">${txs || '<em>No transactions</em>'}</div>
+      </div>`;
+    }
+
+    // ── Faucet ─────────────────────────────────────────────────────────────
+    document.getElementById("btnFaucet").addEventListener("click", async () => {
+      const address = document.getElementById("faucetAddress").value.trim();
+      const msgEl   = document.getElementById("faucetMsg");
+      if (!address) { msgEl.style.color = "#e53e3e"; msgEl.textContent = "Please enter an address."; return; }
+      msgEl.textContent = "⏳ Requesting…";
+      try {
+        const res = await apiFetch("/api/blockchain/faucet", {
+          method: "POST",
+          body: JSON.stringify({ address }),
+        });
+        msgEl.style.color = "#38a169";
+        msgEl.textContent = `✔ ${res.amount} D33J queued. Mine a block to confirm!`;
+        showToast(`Faucet: ${res.amount} D33J queued for ${address.substring(0,12)}…`);
+        loadPending(); loadInfo();
+      } catch (e) {
+        msgEl.style.color = "#e53e3e";
+        msgEl.textContent = "✘ " + e.message;
+      }
+    });
+
+    // ── Send transaction ───────────────────────────────────────────────────
+    document.getElementById("btnSendTx").addEventListener("click", async () => {
+      const sender    = document.getElementById("txSender").value.trim();
+      const recipient = document.getElementById("txRecipient").value.trim();
+      const amount    = parseFloat(document.getElementById("txAmount").value);
+      const msgEl     = document.getElementById("txMsg");
+      if (!sender || !recipient || isNaN(amount)) {
+        msgEl.style.color = "#e53e3e";
+        msgEl.textContent = "All fields are required.";
+        return;
+      }
+      msgEl.textContent = "⏳ Queuing…";
+      try {
+        const res = await apiFetch("/api/blockchain/transactions/new", {
+          method: "POST",
+          body: JSON.stringify({ sender, recipient, amount }),
+        });
+        msgEl.style.color = "#38a169";
+        msgEl.textContent = `✔ ${res.message}`;
+        showToast("Transaction queued.");
+        loadPending(); loadInfo();
+      } catch (e) {
+        msgEl.style.color = "#e53e3e";
+        msgEl.textContent = "✘ " + e.message;
+      }
+    });
+
+    // ── Mine ───────────────────────────────────────────────────────────────
+    document.getElementById("btnMine").addEventListener("click", async () => {
+      const miner_address = document.getElementById("minerAddress").value.trim();
+      const msgEl         = document.getElementById("mineMsg");
+      if (!miner_address) { msgEl.style.color = "#e53e3e"; msgEl.textContent = "Enter your miner address."; return; }
+      const btn = document.getElementById("btnMine");
+      btn.disabled    = true;
+      btn.innerHTML   = '<span class="spinner">⛏️</span> Mining…';
+      msgEl.textContent = "";
+      try {
+        const res = await apiFetch("/api/blockchain/mine", {
+          method: "POST",
+          body: JSON.stringify({ miner_address }),
+        });
+        msgEl.style.color = "#38a169";
+        msgEl.textContent = `✔ Block #${res.block.index} mined! Hash: ${res.block.hash.substring(0, 20)}…`;
+        showToast(`Block #${res.block.index} mined successfully!`);
+        refresh();
+      } catch (e) {
+        msgEl.style.color = "#e53e3e";
+        msgEl.textContent = "✘ " + e.message;
+      } finally {
+        btn.disabled  = false;
+        btn.innerHTML = "Mine Block";
+      }
+    });
+
+    // ── Balance ────────────────────────────────────────────────────────────
+    document.getElementById("btnBalance").addEventListener("click", async () => {
+      const address  = document.getElementById("balanceAddress").value.trim();
+      const resultEl = document.getElementById("balanceResult");
+      if (!address) { resultEl.textContent = "Enter an address."; return; }
+      try {
+        const res = await apiFetch(`/api/blockchain/balance/${encodeURIComponent(address)}`);
+        resultEl.textContent =
+          `${res.balance.toLocaleString(undefined, {maximumFractionDigits: 4})} ${res.symbol}`;
+      } catch (e) {
+        resultEl.textContent = "Error: " + e.message;
+      }
+    });
+
+    // ── Full refresh ───────────────────────────────────────────────────────
+    async function refresh() {
+      await Promise.all([loadInfo(), loadPending(), loadChain()]);
+    }
+
+    refresh();
+  })();
+  </script>
+</body>
+</html>
