@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Energy AI Controller – BESS · Solar · Mining · Cooling</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+  <link rel="stylesheet" href="/static/css/energy.css" />
+</head>
+<body>
+
+  <!-- ── Header ── -->
+  <header class="header">
+    <div class="header__inner">
+      <div class="header__brand">
+        <span class="header__logo">⚡</span>
+        <h1 class="header__title">Energy AI Controller</h1>
+      </div>
+      <nav class="header__nav">
+        <a href="/" class="btn btn--outline">AH Collector</a>
+        <button class="btn btn--outline" id="btnRefresh">⟳ Refresh</button>
+        <button class="btn btn--primary" id="btnAnalyze">🤖 Run AI Analysis</button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ── System Overview Stats ── -->
+  <section class="stats-bar" id="overviewStats">
+    <div class="stat-card">
+      <span class="stat-card__value" id="statSolar">– kW</span>
+      <span class="stat-card__label">☀ Solar Output</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-card__value" id="statBess">– %</span>
+      <span class="stat-card__label">🔋 Avg BESS SOC</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-card__value" id="statHashRate">– TH/s</span>
+      <span class="stat-card__label">⛏ Hash Rate</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-card__value" id="statNetPower">– kW</span>
+      <span class="stat-card__label">⚡ Net Power</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-card__value" id="statAlerts">0</span>
+      <span class="stat-card__label">🚨 Alerts</span>
+    </div>
+  </section>
+
+  <!-- ── Alerts banner ── -->
+  <section class="alerts-banner hidden" id="alertsBanner"></section>
+
+  <!-- ── Main grid ── -->
+  <main class="energy-main">
+
+    <!-- ─── Column 1: Solar ─── -->
+    <section class="energy-section">
+      <div class="section-header">
+        <h2 class="section-title">☀ Solar Farms</h2>
+        <button class="btn btn--sm btn--primary" id="btnAddSolar">+ Add Farm</button>
+      </div>
+      <div class="device-list" id="solarList">
+        <p class="empty-state">No solar farms configured.</p>
+      </div>
+    </section>
+
+    <!-- ─── Column 2: BESS ─── -->
+    <section class="energy-section">
+      <div class="section-header">
+        <h2 class="section-title">🔋 BESS Units</h2>
+        <button class="btn btn--sm btn--primary" id="btnAddBess">+ Add Unit</button>
+      </div>
+      <div class="device-list" id="bessList">
+        <p class="empty-state">No BESS units configured.</p>
+      </div>
+    </section>
+
+    <!-- ─── Column 3: Mining ─── -->
+    <section class="energy-section">
+      <div class="section-header">
+        <h2 class="section-title">⛏ Mining Rigs</h2>
+        <button class="btn btn--sm btn--primary" id="btnAddRig">+ Add Rig</button>
+      </div>
+      <div class="device-list" id="rigList">
+        <p class="empty-state">No mining rigs configured.</p>
+      </div>
+    </section>
+
+    <!-- ─── Column 4: Cooling ─── -->
+    <section class="energy-section">
+      <div class="section-header">
+        <h2 class="section-title">❄ Cooling Zones</h2>
+        <button class="btn btn--sm btn--primary" id="btnAddZone">+ Add Zone</button>
+      </div>
+      <div class="device-list" id="zoneList">
+        <p class="empty-state">No cooling zones configured.</p>
+      </div>
+    </section>
+
+    <!-- ─── AI Recommendations panel ─── -->
+    <section class="energy-section energy-section--full">
+      <div class="section-header">
+        <h2 class="section-title">🤖 AI Recommendations</h2>
+        <div style="display:flex;gap:.5rem">
+          <button class="btn btn--sm btn--outline" id="btnSelectAll">Select All</button>
+          <button class="btn btn--sm btn--primary" id="btnExecute" disabled>▶ Execute Selected</button>
+        </div>
+      </div>
+      <div id="recommendationsPanel">
+        <p class="empty-state">Click "Run AI Analysis" to generate recommendations.</p>
+      </div>
+    </section>
+
+    <!-- ─── AI Action Log ─── -->
+    <section class="energy-section energy-section--full">
+      <div class="section-header">
+        <h2 class="section-title">📋 AI Action Log</h2>
+        <span class="section-subtitle" id="actionLogCount"></span>
+      </div>
+      <div id="actionLog">
+        <p class="empty-state">No actions logged yet.</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ══════════════════════════════════════════════════════
+       Add / Edit Modals
+  ══════════════════════════════════════════════════════ -->
+
+  <!-- ── Solar Farm Modal ── -->
+  <div class="modal-backdrop hidden" id="solarModal" role="dialog" aria-modal="true" aria-labelledby="solarModalTitle">
+    <div class="modal">
+      <div class="modal__header">
+        <h2 class="modal__title" id="solarModalTitle">Add Solar Farm</h2>
+        <button class="modal__close" data-close="solarModal">&times;</button>
+      </div>
+      <form class="modal__form" id="solarForm" novalidate>
+        <input type="hidden" id="solarId" />
+        <div class="form-row">
+          <label>Name <span class="required">*</span></label>
+          <input type="text" id="solarName" placeholder="Main Solar Array" required maxlength="200" />
+        </div>
+        <div class="form-row form-row--split">
+          <div>
+            <label>Capacity (kW)</label>
+            <input type="number" id="solarCapacity" placeholder="500" min="0" step="0.1" />
+          </div>
+          <div>
+            <label>Panel Count</label>
+            <input type="number" id="solarPanels" placeholder="1000" min="0" />
+          </div>
+        </div>
+        <div class="form-row">
+          <label>Location</label>
+          <input type="text" id="solarLocation" placeholder="Rooftop / Field" maxlength="200" />
+        </div>
+        <div class="form-row form-row--split">
+          <div>
+            <label>Current Output (kW)</label>
+            <input type="number" id="solarOutput" placeholder="0" min="0" step="0.1" />
+          </div>
+          <div>
+            <label>Irradiance (W/m²)</label>
+            <input type="number" id="solarIrradiance" placeholder="0" min="0" step="1" />
+          </div>
+        </div>
+        <div class="form-row form-row--split">
+          <div>
+            <label>Efficiency (%)</label>
+            <input type="number" id="solarEfficiency" placeholder="0" min="0" max="100" step="0.1" />
+          </div>
+          <div>
+            <label style="padding-top:1.4rem">
+              <input type="checkbox" id="solarActive" checked /> Active
+            </label>
+          </div>
+        </div>
+        <div class="modal__actions">
+          <button type="button" class="btn btn--ghost" data-close="solarModal">Cancel</button>
+          <button type="submit" class="btn btn--primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── BESS Modal ── -->
+  <div class="modal-backdrop hidden" id="bessModal" role="dialog" aria-modal="true" aria-labelledby="bessModalTitle">
+    <div class="modal">
+      <div class="modal__header">
+        <h2 class="modal__title" id="bessModalTitle">Add BESS Unit</h2>
+        <button class="modal__close" data-close="bessModal">&times;</button>
+      </div>
+      <form class="modal__form" id="bessForm" novalidate>
+        <input type="hidden" id="bessId" />
+        <div class="form-row">
+          <label>Name <span class="required">*</span></label>
+          <input type="text" id="bessName" placeholder="Battery Pack A" required maxlength="200" />
+        </div>
+        <div class="form-row form-row--split">
+          <div>
+            <label>Capacity (kWh)</label>
+            <input type="number" id="bessCapacity" placeholder="1000" min="0" step="1" />
+          </div>
+          <div>
+            <label>SOC (%)</label>
+            <input type="number" id="bessSoc" placeholder="50" min="0" max="100" step="0.1" />
+          </div>
+        </div>
+        <div class="form-row form-row--split">
+          <div>
+            <label>Max Charge Rate (kW)</label>
+            <input type="number" id="bessChargeRate" placeholder="250" min="0" step="1" />
+          </div>
+          <div>
+            <label>Max Discharge (kW)</label>
+            <input type="number" id="bessDischargeRate" placeholder="250" min="0" step="1" />
+          </div>
+        </div>
+        <div class="form-row form-row--split">
+          <div>
+            <label>Temperature (°C)</label>
+            <input type="number" id="bessTemp" placeholder="25" step="0.1" />
+          </div>
+          <div>
+            <label>Health (%)</label>
+            <input type="number" id="bessHealth" placeholder="100" min="0" max="100" step="0.1" />
+          </div>
+        </div>
+        <div class="form-row form-row--split">
+          <div>
+            <label>Cycle Count</label>
+            <input type="number" id="bessCycles" placeholder="0" min="0" />
+          </div>
+          <div>
+            <label style="padding-top:1.4rem">
+              <input type="checkbox" id="bessActive" checked /> Active
+            </label>
+          </div>
+        </div>
+        <div class="modal__actions">
+          <button type="button" class="btn btn--ghost" data-close="bessModal">Cancel</button>
+          <button type="submit" class="btn btn--primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Mining Rig Modal ── -->
+  <div class="modal-backdrop hidden" id="rigModal" role="dialog" aria-modal="true" aria-labelledby="rigModalTitle">
+    <div class="modal">
+      <div class="modal__header">
+        <h2 class="modal__title" id="rigModalTitle">Add Mining Rig</h2>
+        <button class="modal__close" data-close="rigModal">&times;</button>
+      </div>
+      <form class="modal__form" id="rigForm" novalidate>
+        <input type="hidden" id="rigId" />
+        <div class="form-row form-row--split">
+          <div>
+            <label>Name <span class="required">*</span></label>
+            <input type="text" id="rigName" placeholder="Rig-01" required maxlength="200" />
+          </div>
+          <div>
+            <label>Model</label>
+            <input type="text" id="rigModel" placeholder="Antminer S21" maxlength="200" />
+          </div>
+        </div>
+        <div class="form-row form-row--split">
+          <div>
+            <label>Max Hash Rate (TH/s)</label>
+            <input type="number" id="rigMaxHash" placeholder="200" min="0" step="0.01" />
+          </div>
+          <div>
+            <label>Max Power (W)</label>
+            <input type="number" id="rigMaxPower" placeholder="3500" min="0" step="1" />
+          </div>
+        </div>
+        <div class="form-row form-row--split">
+          <div>
+            <label>Current Hash Rate (TH/s)</label>
+            <input type="number" id="rigHash" placeholder="0" min="0" step="0.01" />
+          </div>
+          <div>
+            <label>Current Power (W)</label>
+            <input type="number" id="rigPower" placeholder="0" min="0" step="1" />
+          </div>
+        </div>
+        <div class="form-row form-row--split">
+          <div>
+            <label>Chip Temp (°C)</label>
+            <input type="number" id="rigChipTemp" placeholder="65" step="0.1" />
+          </div>
+          <div>
+            <label>Ambient Temp (°C)</label>
+            <input type="number" id="rigAmbientTemp" placeholder="25" step="0.1" />
+          </div>
+        </div>
+        <div class="form-row form-row--split">
+          <div>
+            <label>Throttle (%)</label>
+            <input type="number" id="rigThrottle" placeholder="100" min="0" max="100" step="1" />
+          </div>
+          <div>
+            <label style="padding-top:1.4rem">
+              <input type="checkbox" id="rigActive" /> Active
+            </label>
+          </div>
+        </div>
+        <div class="modal__actions">
+          <button type="button" class="btn btn--ghost" data-close="rigModal">Cancel</button>
+          <button type="submit" class="btn btn--primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Cooling Zone Modal ── -->
+  <div class="modal-backdrop hidden" id="zoneModal" role="dialog" aria-modal="true" aria-labelledby="zoneModalTitle">
+    <div class="modal">
+      <div class="modal__header">
+        <h2 class="modal__title" id="zoneModalTitle">Add Cooling Zone</h2>
+        <button class="modal__close" data-close="zoneModal">&times;</button>
+      </div>
+      <form class="modal__form" id="zoneForm" novalidate>
+        <input type="hidden" id="zoneId" />
+        <div class="form-row form-row--split">
+          <div>
+            <label>Name <span class="required">*</span></label>
+            <input type="text" id="zoneName" placeholder="Zone A – Server Room" required maxlength="200" />
+          </div>
+          <div>
+            <label>Type</label>
+            <select id="zoneType">
+              <option value="CRAC">CRAC</option>
+              <option value="CHILLER">Chiller</option>
+              <option value="FAN">Fan Wall</option>
+              <option value="IMMERSION">Immersion</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row form-row--split">
+          <div>
+            <label>Capacity (kW)</label>
+            <input type="number" id="zoneCapacity" placeholder="50" min="0" step="0.1" />
+          </div>
+          <div>
+            <label>Setpoint Temp (°C)</label>
+            <input type="number" id="zoneSetpoint" placeholder="22" step="0.1" />
+          </div>
+        </div>
+        <div class="form-row form-row--split">
+          <div>
+            <label>Max Temp (°C)</label>
+            <input type="number" id="zoneMaxTemp" placeholder="30" step="0.1" />
+          </div>
+          <div>
+            <label>Min Temp (°C)</label>
+            <input type="number" id="zoneMinTemp" placeholder="18" step="0.1" />
+          </div>
+        </div>
+        <div class="form-row form-row--split">
+          <div>
+            <label>Current Temp (°C)</label>
+            <input type="number" id="zoneCurrentTemp" placeholder="22" step="0.1" />
+          </div>
+          <div>
+            <label>Fan Speed (%)</label>
+            <input type="number" id="zoneFanSpeed" placeholder="50" min="0" max="100" step="1" />
+          </div>
+        </div>
+        <div class="form-row form-row--split">
+          <div>
+            <label>Coolant Flow (L/min)</label>
+            <input type="number" id="zoneCoolantFlow" placeholder="0" min="0" step="0.1" />
+          </div>
+          <div>
+            <label style="padding-top:1.4rem">
+              <input type="checkbox" id="zoneActive" checked /> Active
+            </label>
+          </div>
+        </div>
+        <div class="modal__actions">
+          <button type="button" class="btn btn--ghost" data-close="zoneModal">Cancel</button>
+          <button type="submit" class="btn btn--primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Toast ── -->
+  <div class="toast hidden" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="/static/js/energy.js"></script>
+</body>
+</html>
